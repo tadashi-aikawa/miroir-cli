@@ -46,6 +46,8 @@ fn fetch_summaries(client: &DynamoDbClient, table_name: String) -> Vec<Summary> 
 fn main() {
     let client = DynamoDbClient::simple(Region::ApNortheast1);
     let summaries = fetch_summaries(&client, "miroir".to_string());
-    let json_str = serde_json::to_string(&summaries).unwrap();
-    print!("{}", json_str);
+    let output = summaries.into_iter()
+        .map(|x| format!("{}\t{}\n", &x.hashkey[0..12], x.title.unwrap()))
+        .collect::<String>();
+    print!("{}", output);
 }
