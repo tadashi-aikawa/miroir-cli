@@ -15,7 +15,7 @@ struct Summary {
     hashkey: String,
     title: Option<String>,
     // Option is for old version
-//    elapsed_sec: Option<String>,
+    begin_time: String,
 }
 
 fn fetch_summaries(client: &DynamoDbClient, table_name: String) -> Vec<Summary> {
@@ -26,15 +26,19 @@ fn fetch_summaries(client: &DynamoDbClient, table_name: String) -> Vec<Summary> 
 
     match client.scan(&scan_input).sync() {
         Ok(output) => {
-            output.items.unwrap().into_iter()
+            let mut vec = output.items.unwrap().into_iter()
                 .map(|x| {
                     Summary {
-                       hashkey: x.get("hashkey").cloned().unwrap().s.unwrap(),
+                        hashkey: x.get("hashkey").cloned().unwrap().s.unwrap(),
                         title: x.get("title").cloned().unwrap().s,
-//                        elapsed_sec: x.get("elapsed_sec").cloned().unwrap().n,
+                        begin_time: x.get("begin_time").cloned().unwrap()
+                            .s.unwrap()
+                            .replace("/", "-"),
                     }
                 })
-                .collect::<Vec<Summary>>()
+                .collect::<Vec<Summary>>();
+            vec.sort_by_key(|x| x.begin_time.clone());
+            vec
         }
         Err(error) => {
             println!("Error: {:?}", error);
@@ -47,7 +51,7 @@ fn main() {
     let client = DynamoDbClient::simple(Region::ApNortheast1);
     let summaries = fetch_summaries(&client, "miroir".to_string());
     let output = summaries.into_iter()
-        .map(|x| format!("{}\t{}\n", &x.hashkey[0..12], x.title.unwrap()))
+        .map(|x| format!("{:30}\t{}\t{}\n", x.begin_time, &x.hashkey[0..12], x.title.unwrap()))
         .collect::<String>();
     print!("{}", output);
 }
