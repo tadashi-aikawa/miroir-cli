@@ -1,57 +1,53 @@
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde;
-extern crate serde_json;
-
+extern crate futures;
 extern crate rusoto_core;
 extern crate rusoto_dynamodb;
+extern crate rusoto_s3;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 
-use rusoto_core::Region;
-use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ScanInput};
+extern crate docopt;
 
-#[derive(Debug, Serialize, Deserialize)]
-struct Summary {
-    hashkey: String,
-    title: Option<String>,
-    // Option is for old version
-    begin_time: String,
-}
 
-fn fetch_summaries(client: &DynamoDbClient, table_name: String) -> Vec<Summary> {
-    let scan_input = ScanInput {
-        table_name,
-        ..Default::default()
-    };
+use docopt::Docopt;
 
-    match client.scan(&scan_input).sync() {
-        Ok(output) => {
-            let mut vec = output.items.unwrap().into_iter()
-                .map(|x| {
-                    Summary {
-                        hashkey: x.get("hashkey").cloned().unwrap().s.unwrap(),
-                        title: x.get("title").cloned().unwrap().s,
-                        begin_time: x.get("begin_time").cloned().unwrap()
-                            .s.unwrap()
-                            .replace("/", "-"),
-                    }
-                })
-                .collect::<Vec<Summary>>();
-            vec.sort_by_key(|x| x.begin_time.clone());
-            vec
-        }
-        Err(error) => {
-            println!("Error: {:?}", error);
-            panic!(error)
-        }
-    }
+mod handlers;
+mod clients;
+
+const USAGE: &'static str = "
+Miroir CLI
+
+Usage:
+  miroir get summaries
+  miroir get report <key> [--pretty]
+  miroir --help
+
+Options:
+  -h --help     Show this screen.
+  -p --pretty   Pretty print
+";
+
+#[derive(Debug, Deserialize)]
+struct Args {
+    cmd_get: bool,
+    cmd_summaries: bool,
+    cmd_report: bool,
+    arg_key: String,
+    flag_pretty: bool,
 }
 
 fn main() {
-    let client = DynamoDbClient::simple(Region::ApNortheast1);
-    let summaries = fetch_summaries(&client, "miroir".to_string());
-    let output = summaries.into_iter()
-        .map(|x| format!("{:30}\t{}\t{}\n", x.begin_time, &x.hashkey[0..12], x.title.unwrap()))
-        .collect::<String>();
-    print!("{}", output);
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.deserialize())
+        .unwrap_or_else(|e| e.exit());
+
+    if args.cmd_get {
+        if args.cmd_summaries {
+            handlers::get::summaries::exec();
+        }
+        if args.cmd_report {
+            handlers::get::report::exec(&args.arg_key, args.flag_pretty);
+        }
+    }
 }
