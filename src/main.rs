@@ -3,12 +3,32 @@ extern crate serde_derive;
 
 extern crate serde;
 extern crate serde_json;
+extern crate docopt;
 
 extern crate rusoto_core;
 extern crate rusoto_dynamodb;
 
 use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ScanInput};
+use docopt::Docopt;
+
+const USAGE: &'static str = "
+Miroir CLI
+
+Usage:
+  miroir get summaries
+  miroir get report
+
+Options:
+  -h --help     Show this screen.
+";
+
+#[derive(Debug, Deserialize)]
+struct Args {
+    cmd_get: bool,
+    cmd_summaries: bool,
+    cmd_report: bool,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Summary {
@@ -47,11 +67,30 @@ fn fetch_summaries(client: &DynamoDbClient, table_name: String) -> Vec<Summary> 
     }
 }
 
-fn main() {
+fn get_report() {
+    print!("TBD")
+}
+
+fn get_summaries() {
     let client = DynamoDbClient::simple(Region::ApNortheast1);
     let summaries = fetch_summaries(&client, "miroir".to_string());
     let output = summaries.into_iter()
         .map(|x| format!("{:30}\t{}\t{}\n", x.begin_time, &x.hashkey[0..12], x.title.unwrap()))
         .collect::<String>();
     print!("{}", output);
+}
+
+fn main() {
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.deserialize())
+        .unwrap_or_else(|e| e.exit());
+
+    if args.cmd_get {
+        if args.cmd_summaries {
+            get_summaries();
+        }
+        if args.cmd_report {
+            get_report();
+        }
+    }
 }
