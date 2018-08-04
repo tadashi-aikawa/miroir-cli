@@ -21,6 +21,7 @@ Miroir CLI
 Usage:
   miroir get summaries
   miroir get report <key> [--pretty]
+  miroir --help
 
 Options:
   -h --help     Show this screen.
