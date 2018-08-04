@@ -1,23 +1,27 @@
-#[macro_use]
-extern crate serde_derive;
-
-extern crate serde;
-extern crate serde_json;
 extern crate docopt;
-
+extern crate futures;
 extern crate rusoto_core;
 extern crate rusoto_dynamodb;
+extern crate rusoto_s3;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 
+use docopt::Docopt;
+use futures::Future;
+use futures::stream::Stream;
 use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ScanInput};
-use docopt::Docopt;
+use rusoto_s3::{GetObjectRequest, S3, S3Client};
+use serde_json::Value;
 
 const USAGE: &'static str = "
 Miroir CLI
 
 Usage:
   miroir get summaries
-  miroir get report
+  miroir get report <key>
 
 Options:
   -h --help     Show this screen.
@@ -28,6 +32,7 @@ struct Args {
     cmd_get: bool,
     cmd_summaries: bool,
     cmd_report: bool,
+    arg_key: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,6 +41,41 @@ struct Summary {
     title: Option<String>,
     // Option is for old version
     begin_time: String,
+}
+
+fn fetch_from_s3(client: &S3Client, bucket: &String, key: &String) -> String {
+    let get_object_request = GetObjectRequest {
+        bucket: bucket.to_string(),
+        key: key.to_string(),
+        ..Default::default()
+    };
+
+    match client.get_object(&get_object_request).sync() {
+        Ok(output) => {
+            let bytes = output.body.unwrap().concat2().wait().unwrap();
+            String::from_utf8(bytes).unwrap()
+        }
+        Err(error) => {
+            println!("Error: {:?}", error);
+            panic!(error)
+        }
+    }
+}
+
+fn fetch_report(client: &S3Client, bucket: &String, key: &String) -> String {
+    let report_without_trials = fetch_from_s3(
+        client,
+        bucket,
+        &format!("results/{}/report-without-trials.json", key),
+    );
+    let trials = fetch_from_s3(
+        client,
+        bucket,
+        &format!("results/{}/trials.json", key),
+    );
+    let mut report: Value = serde_json::from_str(&report_without_trials).unwrap();
+    report["trials"] = serde_json::from_str(&trials).unwrap();
+    return report.to_string();
 }
 
 fn fetch_summaries(client: &DynamoDbClient, table_name: String) -> Vec<Summary> {
@@ -67,11 +107,13 @@ fn fetch_summaries(client: &DynamoDbClient, table_name: String) -> Vec<Summary> 
     }
 }
 
-fn get_report() {
-    print!("TBD")
+fn handle_get_report(key: &String) {
+    let client = S3Client::simple(Region::ApNortheast1);
+    let report = fetch_report(&client, &"mamansoft-miroir".to_string(), key);
+    print!("{}", report);
 }
 
-fn get_summaries() {
+fn handle_get_summaries() {
     let client = DynamoDbClient::simple(Region::ApNortheast1);
     let summaries = fetch_summaries(&client, "miroir".to_string());
     let output = summaries.into_iter()
@@ -87,10 +129,10 @@ fn main() {
 
     if args.cmd_get {
         if args.cmd_summaries {
-            get_summaries();
+            handle_get_summaries();
         }
         if args.cmd_report {
-            get_report();
+            handle_get_report(&args.arg_key);
         }
     }
 }
