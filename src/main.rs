@@ -20,10 +20,11 @@ Miroir CLI
 
 Usage:
   miroir get summaries
-  miroir get report <key>
+  miroir get report <key> [--pretty]
 
 Options:
   -h --help     Show this screen.
+  -p --pretty   Pretty print
 ";
 
 #[derive(Debug, Deserialize)]
@@ -32,6 +33,7 @@ struct Args {
     cmd_summaries: bool,
     cmd_report: bool,
     arg_key: String,
+    flag_pretty: bool,
 }
 
 fn main() {
@@ -44,7 +46,7 @@ fn main() {
             handlers::get::summaries::exec();
         }
         if args.cmd_report {
-            handlers::get::report::exec(&args.arg_key);
+            handlers::get::report::exec(&args.arg_key, args.flag_pretty);
         }
     }
 }
