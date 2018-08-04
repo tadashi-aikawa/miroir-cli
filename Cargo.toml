@@ -1,5 +1,5 @@
 [package]
-name = "miroir-cli"
+name = "miroir"
 version = "0.1.0"
 authors = ["tadashi-aikawa <syou.maman@gmail.com>"]
 
