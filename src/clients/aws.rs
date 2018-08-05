@@ -1,6 +1,6 @@
 use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ScanInput};
-use rusoto_s3::{GetObjectRequest, S3, S3Client};
+use rusoto_s3::{GetObjectRequest, S3, S3Client, ListObjectsV2Request};
 use futures::Future;
 use futures::stream::Stream;
 
@@ -56,6 +56,31 @@ pub fn fetch_report(bucket: &String, key: &String) -> String {
         Ok(output) => {
             let bytes = output.body.unwrap().concat2().wait().unwrap();
             String::from_utf8(bytes).unwrap()
+        }
+        Err(error) => {
+            println!("Error: {:?}", error);
+            panic!(error)
+        }
+    }
+}
+
+pub fn search_keys(bucket: &String, prefix: &String) -> Vec<String> {
+    let client = S3Client::simple(Region::ApNortheast1);
+
+    let list_objects_v2_request = ListObjectsV2Request {
+        bucket: bucket.to_string(),
+        prefix: Some(prefix.to_string()),
+        ..Default::default()
+    };
+
+    match client.list_objects_v2(&list_objects_v2_request).sync() {
+        Ok(output) => {
+            match output.contents {
+                Some(contents) => contents.into_iter()
+                    .map(|x| x.key.unwrap().clone())
+                    .collect::<Vec<String>>(),
+                None => panic!("Specified key is not found!")
+            }
         }
         Err(error) => {
             println!("Error: {:?}", error);
