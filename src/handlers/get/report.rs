@@ -30,9 +30,9 @@ fn find_key(bucket: &String, prefix: &String) -> String {
     }
 }
 
-pub fn exec(key: &String, pretty: bool) {
-    let report_key = find_key(&"mamansoft-miroir".to_string(), key);
-    let report = fetch_report(&"mamansoft-miroir".to_string(), &report_key);
+pub fn exec(key_prefix: &String, pretty: bool) {
+    let key = find_key(&"mamansoft-miroir".to_string(), key_prefix);
+    let report = fetch_report(&"mamansoft-miroir".to_string(), &key);
     if pretty {
         print!("{}", serde_json::to_string_pretty(&report).unwrap());
     } else {
