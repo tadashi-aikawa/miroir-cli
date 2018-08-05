@@ -18,8 +18,21 @@ fn fetch_report(bucket: &String, key: &String) -> Value {
     report
 }
 
+fn find_key(bucket: &String, prefix: &String) -> String {
+    let keys = aws::search_keys(bucket, &format!("results/{}", prefix));
+
+    let result = keys.into_iter()
+        .filter(|x| x.contains("report-without-trials.json"))
+        .collect::<Vec<String>>();
+    match result.len() {
+        1 => result.first().unwrap().to_string().split("/").nth(1).unwrap().to_string(),
+        _n => panic!("Unable to uniquely identify key!"),
+    }
+}
+
 pub fn exec(key: &String, pretty: bool) {
-    let report = fetch_report(&"mamansoft-miroir".to_string(), key);
+    let report_key = find_key(&"mamansoft-miroir".to_string(), key);
+    let report = fetch_report(&"mamansoft-miroir".to_string(), &report_key);
     if pretty {
         print!("{}", serde_json::to_string_pretty(&report).unwrap());
     } else {
