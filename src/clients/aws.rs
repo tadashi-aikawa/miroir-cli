@@ -1,8 +1,9 @@
-use rusoto_core::Region;
-use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ScanInput};
-use rusoto_s3::{GetObjectRequest, S3, S3Client, ListObjectsV2Request};
 use futures::Future;
 use futures::stream::Stream;
+use rusoto_core::Region;
+use rusoto_dynamodb::{DynamoDb, DynamoDbClient, ScanInput, DeleteItemInput, AttributeValue, DeleteItemError};
+use rusoto_s3::{GetObjectRequest, ListObjectsV2Request, S3, S3Client, GetObjectError};
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Summary {
@@ -12,6 +13,25 @@ pub struct Summary {
     pub begin_time: String,
 }
 
+pub fn delete_summary(table_name: String, key: String) -> Result<String, DeleteItemError> {
+    let delete_key = [("hashkey".to_string(), AttributeValue { s: Some(key.to_string()), ..Default::default() })]
+        .iter()
+        .cloned()
+        .collect::<HashMap<String, AttributeValue>>();
+
+    let client = DynamoDbClient::simple(Region::ApNortheast1);
+    let delete_item_input = DeleteItemInput {
+        table_name,
+        key: delete_key,
+        condition_expression: Some("attribute_exists(hashkey)".to_string()),
+        ..Default::default()
+    };
+
+    match client.delete_item(&delete_item_input).sync() {
+        Ok(_) => Ok(format!("keys: {:?}", key)),
+        Err(err) => Err(err),
+    }
+}
 
 pub fn fetch_summaries(table_name: String) -> Vec<Summary> {
     let client = DynamoDbClient::simple(Region::ApNortheast1);
@@ -69,7 +89,7 @@ pub fn search_keys(bucket: &String, prefix: &String) -> Vec<String> {
 
     let list_objects_v2_request = ListObjectsV2Request {
         bucket: bucket.to_string(),
-        prefix: Some(prefix.to_string()),
+        prefix: Some(format!("results/{}", prefix)),
         ..Default::default()
     };
 
@@ -79,7 +99,7 @@ pub fn search_keys(bucket: &String, prefix: &String) -> Vec<String> {
                 Some(contents) => contents.into_iter()
                     .map(|x| x.key.unwrap().clone())
                     .collect::<Vec<String>>(),
-                None => panic!("Specified key is not found!")
+                None => vec![]
             }
         }
         Err(error) => {
@@ -88,3 +108,38 @@ pub fn search_keys(bucket: &String, prefix: &String) -> Vec<String> {
         }
     }
 }
+
+pub fn exists(bucket: &String, key: &String) -> Option<bool> {
+    let client = S3Client::simple(Region::ApNortheast1);
+
+    let get_object_request = GetObjectRequest {
+        bucket: bucket.to_string(),
+        key: format!("results/{}/report-without-trials.json", key),
+        ..Default::default()
+    };
+
+    match client.get_object(&get_object_request).sync() {
+        Ok(_) => Some(true),
+        Err(GetObjectError::NoSuchKey(_)) => {
+            Some(false)
+        },
+        Err(message) => {
+            eprintln!("error = {:?}", message);
+            None
+        },
+    }
+}
+
+pub fn find_key(bucket: &String, prefix: &String) -> Result<String, String> {
+    let keys = search_keys(bucket, prefix);
+
+    let result = keys.into_iter()
+        .filter(|x| x.contains("report-without-trials.json"))
+        .collect::<Vec<String>>();
+    match result.len() {
+        1 => Ok(result.first().unwrap().to_string().split("/").nth(1).unwrap().to_string()),
+        _n => Err("Unable to uniquely identify key!".to_string()),
+    }
+}
+
+

@@ -21,20 +21,24 @@ Miroir CLI
 Usage:
   miroir get summaries
   miroir get report <key-prefix> [--pretty]
+  miroir prune [--dry]
   miroir --help
 
 Options:
   -h --help     Show this screen.
   -p --pretty   Pretty print
+  -d --dry      Dry run
 ";
 
 #[derive(Debug, Deserialize)]
 struct Args {
     cmd_get: bool,
+    cmd_prune: bool,
     cmd_summaries: bool,
     cmd_report: bool,
     arg_key_prefix: String,
     flag_pretty: bool,
+    flag_dry: bool,
 }
 
 fn main() {
@@ -49,5 +53,9 @@ fn main() {
         if args.cmd_report {
             handlers::get::report::exec(&args.arg_key_prefix, args.flag_pretty);
         }
+    }
+
+    if args.cmd_prune {
+        handlers::prune::exec(args.flag_dry);
     }
 }
