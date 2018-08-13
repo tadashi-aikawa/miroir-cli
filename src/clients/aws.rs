@@ -2,11 +2,12 @@ use futures::stream::Stream;
 use futures::Future;
 use rusoto_core::Region;
 use rusoto_dynamodb::{
-    AttributeValue, DeleteItemError, DeleteItemInput, DynamoDb, DynamoDbClient, ScanInput,
+    AttributeDefinition, AttributeValue, CreateTableInput, DeleteItemError, DeleteItemInput,
+    DynamoDb, DynamoDbClient, KeySchemaElement, ProvisionedThroughput, ScanInput,
 };
 use rusoto_s3::{
-    CORSConfiguration, CORSRule, CreateBucketRequest, GetObjectError, GetObjectRequest,
-    ListObjectsV2Request, PutBucketCorsRequest, S3, S3Client,
+    CORSConfiguration, CORSRule, CreateBucketConfiguration, CreateBucketError, CreateBucketRequest,
+    GetObjectError, GetObjectRequest, ListObjectsV2Request, PutBucketCorsRequest, S3, S3Client,
 };
 use std::collections::HashMap;
 
@@ -160,17 +161,54 @@ pub fn find_key(bucket: &String, prefix: &String) -> Result<String, String> {
     }
 }
 
-pub fn create_bucket(bucket: &String) -> bool {
+pub fn create_table(table_name: &String) -> Result<(), String> {
+    let client = DynamoDbClient::simple(Region::ApNortheast1);
+
+    let attribute_definitions = vec![AttributeDefinition {
+        attribute_name: "hashkey".to_string(),
+        attribute_type: "S".to_string(),
+    }];
+    let key_schema = vec![KeySchemaElement {
+        attribute_name: "hashkey".to_string(),
+        key_type: "HASH".to_string(),
+    }];
+    let provisioned_throughput = ProvisionedThroughput {
+        read_capacity_units: 1,
+        write_capacity_units: 1,
+    };
+
+    let create_table_input = CreateTableInput {
+        table_name: table_name.to_string(),
+        attribute_definitions,
+        key_schema,
+        provisioned_throughput,
+        ..Default::default()
+    };
+
+    client
+        .create_table(&create_table_input)
+        .sync()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+pub fn create_bucket(bucket: &String) -> Result<(), String> {
     let client = S3Client::simple(Region::ApNortheast1);
 
     let create_bucket_request = CreateBucketRequest {
         bucket: bucket.to_string(),
+        create_bucket_configuration: Some(CreateBucketConfiguration {
+            location_constraint: Some(Region::ApNortheast1.name().to_string()),
+        }),
         ..Default::default()
     };
 
     match client.create_bucket(&create_bucket_request).sync() {
-        Ok(_) => eprintln!("[Success] Created ({:?})", bucket),
-        Err(e) => eprintln!("[Error] {:?}", e),
+        Ok(_) => (),
+        Err(CreateBucketError::BucketAlreadyOwnedByYou(_)) => {
+            eprintln!("[Skip] {:?} is already owned by you.", bucket)
+        }
+        Err(e) => return Err(e.to_string()),
     }
 
     let rule = CORSRule {
@@ -186,7 +224,6 @@ pub fn create_bucket(bucket: &String) -> bool {
         max_age_seconds: Some(3000),
         ..Default::default()
     };
-
     let put_bucket_cors_request = PutBucketCorsRequest {
         bucket: bucket.to_string(),
         cors_configuration: CORSConfiguration {
@@ -195,12 +232,9 @@ pub fn create_bucket(bucket: &String) -> bool {
         ..Default::default()
     };
 
-    match client.put_bucket_cors(&put_bucket_cors_request).sync() {
-        Ok(_) => eprintln!("[Success] Set CORS ({:?})", bucket),
-        Err(e) => eprintln!("[Error] {:?}", e),
-    }
-
-    eprintln!("put_bucket_cors_request = {:?}", put_bucket_cors_request);
-
-    true
+    client
+        .put_bucket_cors(&put_bucket_cors_request)
+        .sync()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
 }
