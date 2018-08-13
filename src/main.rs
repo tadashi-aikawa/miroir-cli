@@ -1,3 +1,4 @@
+extern crate docopt;
 extern crate futures;
 extern crate rusoto_core;
 extern crate rusoto_dynamodb;
@@ -7,13 +8,10 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 
-extern crate docopt;
-
-
 use docopt::Docopt;
 
-mod handlers;
 mod clients;
+mod handlers;
 
 const USAGE: &'static str = "
 Miroir CLI
@@ -21,24 +19,36 @@ Miroir CLI
 Usage:
   miroir get summaries
   miroir get report <key-prefix> [--format]
+  miroir create --table=<table> --bucket=<bucket>
   miroir prune [--dry]
   miroir --help
 
 Options:
-  -h --help     Show this screen.
-  -f --format   Pretty format
-  -d --dry      Dry run
+  -h --help            Show this screen.
+  -f --format          Pretty format
+  -d --dry             Dry run
+  --table=<table>      DynamoDB table name
+  --bucket=<bucket>    S3 bucket name
 ";
+
+pub enum RetCode {
+    SUCCESS = 0,
+    FAILURE = 1,
+}
 
 #[derive(Debug, Deserialize)]
 struct Args {
     cmd_get: bool,
+    cmd_create: bool,
     cmd_prune: bool,
     cmd_summaries: bool,
     cmd_report: bool,
     arg_key_prefix: String,
     flag_format: bool,
     flag_dry: bool,
+    flag_table: String,
+    flag_bucket: String,
+    flag_prefix: Option<String>,
 }
 
 fn main() {
@@ -53,10 +63,9 @@ fn main() {
         if args.cmd_report {
             handlers::get::report::exec(&args.arg_key_prefix, args.flag_format);
         }
-    }
-
-    if args.cmd_prune {
+    } else if args.cmd_prune {
         handlers::prune::exec(args.flag_dry);
+    } else if args.cmd_create {
+        std::process::exit(handlers::create::exec(args.flag_table, args.flag_bucket) as i32);
     }
-
 }
