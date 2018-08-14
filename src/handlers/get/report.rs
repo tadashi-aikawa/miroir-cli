@@ -9,28 +9,23 @@ fn fetch_report(bucket: &String, key: &String) -> Value {
         bucket,
         &format!("results/{}/report-without-trials.json", key),
     );
-    let trials = aws::fetch_report(
-        bucket,
-        &format!("results/{}/trials.json", key),
-    );
+    let trials = aws::fetch_report(bucket, &format!("results/{}/trials.json", key));
     let mut report: Value = serde_json::from_str(&report_without_trials).unwrap();
     report["trials"] = serde_json::from_str(&trials).unwrap();
     report
 }
 
-pub fn exec(key_prefix: &String, format: bool) {
-    let key = aws::find_key(&"mamansoft-miroir".to_string(), key_prefix);
+pub fn exec(bucket_name: &String, key_prefix: &String, format: bool) {
+    let key = aws::find_key(bucket_name, key_prefix);
     match key {
         Ok(k) => {
-            let report = fetch_report(&"mamansoft-miroir".to_string(), &k);
+            let report = fetch_report(bucket_name, &k);
             if format {
                 print!("{}", serde_json::to_string_pretty(&report).unwrap());
             } else {
                 print!("{}", report.to_string());
             }
-        },
-        Err(e) => panic!(e)
+        }
+        Err(e) => panic!(e),
     }
 }
-
-

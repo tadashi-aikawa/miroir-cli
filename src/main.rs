@@ -17,8 +17,8 @@ const USAGE: &'static str = "
 Miroir CLI
 
 Usage:
-  miroir get summaries
-  miroir get report <key-prefix> [--format]
+  miroir get summaries --table=<table>
+  miroir get report <key-prefix> --bucket=<bucket> [--format]
   miroir create --table=<table> --bucket=<bucket>
   miroir prune [--dry]
   miroir --help
@@ -58,10 +58,10 @@ fn main() {
 
     if args.cmd_get {
         if args.cmd_summaries {
-            handlers::get::summaries::exec();
+            handlers::get::summaries::exec(&args.flag_table);
         }
         if args.cmd_report {
-            handlers::get::report::exec(&args.arg_key_prefix, args.flag_format);
+            handlers::get::report::exec(&args.flag_bucket, &args.arg_key_prefix, args.flag_format);
         }
     } else if args.cmd_prune {
         handlers::prune::exec(args.flag_dry);
