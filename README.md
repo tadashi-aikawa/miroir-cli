@@ -1,7 +1,8 @@
 miroir-cli
 ==========
 
-CLI for Miroir
+CLI for Miroir.
+Not support for Windows.
 
 
 Install
