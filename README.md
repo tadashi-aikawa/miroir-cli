@@ -10,6 +10,10 @@ For developer
 ### Release
 
 ```
-$ make build
 $ make release
 ```
+
+### Upload
+
+Upload `target/release/miroir`
+
