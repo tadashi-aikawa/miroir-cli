@@ -20,7 +20,7 @@ Usage:
   miroir get summaries --table=<table>
   miroir get report <key-prefix> --bucket=<bucket> [--format]
   miroir create --table=<table> --bucket=<bucket>
-  miroir prune [--dry]
+  miroir prune  --table=<table> --bucket=<bucket> [--dry]
   miroir --help
 
 Options:
@@ -64,7 +64,7 @@ fn main() {
             handlers::get::report::exec(&args.flag_bucket, &args.arg_key_prefix, args.flag_format);
         }
     } else if args.cmd_prune {
-        handlers::prune::exec(args.flag_dry);
+        handlers::prune::exec(&args.flag_table, &args.flag_bucket, args.flag_dry);
     } else if args.cmd_create {
         std::process::exit(handlers::create::exec(args.flag_table, args.flag_bucket) as i32);
     }
