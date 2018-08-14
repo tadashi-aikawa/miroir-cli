@@ -25,20 +25,23 @@ build: ## Release build
 	@cargo build --release
 	@echo End $@
 
-release: test build ## Release
+release: test ## Release
 	@echo 'Start $@'
 
 	@echo '1. Update a version'
 	@sed -i 's/^version = ".*"$$/version = "$(version)"/g' Cargo.toml
 
-	@echo '2. Staging and commit'
+	@echo '2. Release build'
+	@make build
+
+	@echo '3. Staging and commit'
 	git add Cargo.toml
 	git commit -m ':package: Version $(version)'
 
-	@echo '3. Tags'
+	@echo '4. Tags'
 	git tag v$(version) -m v$(version)
 
-	@echo '4. Push'
+	@echo '5. Push'
 	git push
 
 	@echo 'Success All!!'
