@@ -22,7 +22,7 @@ test: ## Test
 
 build: ## Release build
 	@echo Start $@
-	@cargo build --release
+	@docker run --rm -it -v `pwd`:/home/rust/src ekidd/rust-musl-builder cargo build --release
 	@echo End $@
 
 release: test ## Release

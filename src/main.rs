@@ -6,6 +6,7 @@ extern crate rusoto_s3;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate openssl_probe;
 extern crate serde_json;
 
 use docopt::Docopt;
@@ -52,6 +53,8 @@ struct Args {
 }
 
 fn main() {
+    openssl_probe::init_ssl_cert_env_vars();
+
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
