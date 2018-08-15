@@ -30,6 +30,7 @@ release: test ## Release
 
 	@echo '1. Update a version'
 	@sed -i 's/^version = ".*"$$/version = "$(version)"/g' Cargo.toml
+	@sed -ri 's/(.+)v[0-9]+\.[0-9]+\.[0-9]+(.+)/\1v$(version)\2/g' README.md
 
 	@echo '2. Release build'
 	@make build
