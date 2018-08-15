@@ -1,9 +1,9 @@
 use clients::aws;
 
-pub fn exec(table_name: &String, bucket: &String, dry: bool) {
+pub fn exec(table_name: &String, bucket: &String, bucket_prefix: Option<String>, dry: bool) {
     let pruned_keys = aws::fetch_summaries(table_name.to_string())
         .into_iter()
-        .flat_map(|x| match aws::exists(bucket, &x.hashkey.to_string()) {
+        .flat_map(|x| match aws::exists(bucket, bucket_prefix.as_ref(), &x.hashkey.to_string()) {
             Some(true) => {
                 eprintln!("[Check]: <Exists> {:?}", x.hashkey);
                 None
