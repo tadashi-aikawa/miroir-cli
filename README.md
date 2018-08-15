@@ -9,7 +9,7 @@ Install
 -------
 
 ```
-$ wget https://github.com/tadashi-aikawa/miroir-cli/releases/download/v0.2.0/miroir && chmod +x miroir
+$ wget https://github.com/tadashi-aikawa/miroir-cli/releases/download/v0.3.0/miroir && chmod +x miroir
 $ ./miroir --help                                                                                                                                   Tue 14 Aug 2018 03:29:07 PM JST
 Miroir CLI
 

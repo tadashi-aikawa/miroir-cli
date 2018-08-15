@@ -36,7 +36,7 @@ release: test ## Release
 	@make build
 
 	@echo '3. Staging and commit'
-	git add Cargo.toml
+	git add Cargo.toml README.md
 	git commit -m ':package: Version $(version)'
 
 	@echo '4. Tags'
