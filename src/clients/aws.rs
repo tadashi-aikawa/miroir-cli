@@ -1,5 +1,6 @@
 use futures::stream::Stream;
 use futures::Future;
+use regex::Regex;
 use rusoto_core::Region;
 use rusoto_dynamodb::{
     AttributeDefinition, AttributeValue, CreateTableInput, DeleteItemError, DeleteItemInput,
@@ -99,12 +100,16 @@ pub fn fetch_report(bucket: &String, key: &String) -> String {
     }
 }
 
-pub fn search_keys(bucket: &String, prefix: &String) -> Vec<String> {
+pub fn search_keys(bucket: &String, bucket_prefix: Option<&String>, prefix: &String) -> Vec<String> {
     let client = S3Client::simple(Region::ApNortheast1);
+
+    let key_prefix = bucket_prefix.map_or(format!("results/{}", prefix), |x| {
+        format!("{}/results/{}", x, prefix)
+    });
 
     let list_objects_v2_request = ListObjectsV2Request {
         bucket: bucket.to_string(),
-        prefix: Some(format!("results/{}", prefix)),
+        prefix: Some(key_prefix),
         ..Default::default()
     };
 
@@ -123,12 +128,17 @@ pub fn search_keys(bucket: &String, prefix: &String) -> Vec<String> {
     }
 }
 
-pub fn exists(bucket: &String, key: &String) -> Option<bool> {
+pub fn exists(bucket: &String, bucket_prefix: Option<&String>, key: &String) -> Option<bool> {
     let client = S3Client::simple(Region::ApNortheast1);
+
+    let without_trials_key = bucket_prefix.map_or(
+        format!("results/{}/report-without-trials.json", key),
+        |x| format!("{}/results/{}/report-without-trials.json", x, key),
+    );
 
     let get_object_request = GetObjectRequest {
         bucket: bucket.to_string(),
-        key: format!("results/{}/report-without-trials.json", key),
+        key: without_trials_key,
         ..Default::default()
     };
 
@@ -142,21 +152,24 @@ pub fn exists(bucket: &String, key: &String) -> Option<bool> {
     }
 }
 
-pub fn find_key(bucket: &String, prefix: &String) -> Result<String, String> {
-    let keys = search_keys(bucket, prefix);
+pub fn find_key(
+    bucket: &String,
+    bucket_prefix: Option<&String>,
+    prefix: &String,
+) -> Result<String, String> {
+    let keys = search_keys(bucket, bucket_prefix, prefix);
 
     let result = keys.into_iter()
         .filter(|x| x.contains("report-without-trials.json"))
         .collect::<Vec<String>>();
+
     match result.len() {
-        1 => Ok(result
-            .first()
-            .unwrap()
-            .to_string()
-            .split("/")
-            .nth(1)
-            .unwrap()
-            .to_string()),
+        0 => Err("Unable to find key!".to_string()),
+        1 => {
+            let re = Regex::new(r"(?P<hash>[0-9a-z]{64})/report-without-trials").unwrap();
+            let caps = re.captures(result.first().unwrap()).unwrap();
+            Ok((&caps["hash"]).to_string())
+        }
         _n => Err("Unable to uniquely identify key!".to_string()),
     }
 }

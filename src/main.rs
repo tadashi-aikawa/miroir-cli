@@ -1,5 +1,6 @@
 extern crate docopt;
 extern crate futures;
+extern crate regex;
 extern crate rusoto_core;
 extern crate rusoto_dynamodb;
 extern crate rusoto_s3;
@@ -19,17 +20,18 @@ Miroir CLI
 
 Usage:
   miroir get summaries --table=<table>
-  miroir get report <key-prefix> --bucket=<bucket> [--format]
+  miroir get report <key-prefix> --bucket=<bucket> [--bucket-prefix=<bucket-prefix>] [--format]
   miroir create --table=<table> --bucket=<bucket>
-  miroir prune  --table=<table> --bucket=<bucket> [--dry]
+  miroir prune  --table=<table> --bucket=<bucket> [--bucket-prefix=<bucket-prefix>] [--dry]
   miroir --help
 
 Options:
-  -h --help            Show this screen.
-  -f --format          Pretty format
-  -d --dry             Dry run
-  --table=<table>      DynamoDB table name
-  --bucket=<bucket>    S3 bucket name
+  -h --help                          Show this screen.
+  -f --format                        Pretty format
+  -d --dry                           Dry run
+  --table=<table>                    DynamoDB table name
+  --bucket=<bucket>                  S3 bucket name
+  --bucket-prefix=<bucket-prefix>    S3 bucket prefix (directory)
 ";
 
 pub enum RetCode {
@@ -49,7 +51,7 @@ struct Args {
     flag_dry: bool,
     flag_table: String,
     flag_bucket: String,
-    flag_prefix: Option<String>,
+    flag_bucket_prefix: Option<String>,
 }
 
 fn main() {
@@ -64,10 +66,15 @@ fn main() {
             handlers::get::summaries::exec(&args.flag_table);
         }
         if args.cmd_report {
-            handlers::get::report::exec(&args.flag_bucket, &args.arg_key_prefix, args.flag_format);
+            handlers::get::report::exec(
+                &args.flag_bucket,
+                args.flag_bucket_prefix,
+                &args.arg_key_prefix,
+                args.flag_format,
+            );
         }
     } else if args.cmd_prune {
-        handlers::prune::exec(&args.flag_table, &args.flag_bucket, args.flag_dry);
+        handlers::prune::exec(&args.flag_table, &args.flag_bucket, args.flag_bucket_prefix, args.flag_dry);
     } else if args.cmd_create {
         std::process::exit(handlers::create::exec(args.flag_table, args.flag_bucket) as i32);
     }
