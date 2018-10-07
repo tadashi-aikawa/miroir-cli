@@ -30,6 +30,7 @@ func CmdGetSummaries(args Args) error {
 	return nil
 }
 
+// CmdGetReport show report
 func CmdGetReport(args Args) error {
 	dao, err := NewAwsDao("ap-northeast-1")
 	if err != nil {

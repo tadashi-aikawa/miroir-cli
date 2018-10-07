@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Summary of report
 type Summary struct {
 	Hashkey        string
 	Title          string
@@ -29,9 +30,10 @@ type Summary struct {
 	WithZip        bool   `dynamodbav:"with_zip"`
 }
 
+// Dao can fetch data
 type Dao interface {
 	FetchSummaries(table string) ([]Summary, error)
-	FetchReport(bucket string, bucket_prefix string, key string) (string, error)
+	FetchReport(bucket string, BucketPrefix string, key string) (string, error)
 }
 
 type awsClient struct {
@@ -39,6 +41,7 @@ type awsClient struct {
 	s3       *s3.S3
 }
 
+// NewAwsDao creates dao instance
 func NewAwsDao(region string) (Dao, error) {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
@@ -95,11 +98,10 @@ func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
 	return jsonMap, nil
 }
 
-func (r *awsClient) FetchReport(bucket string, bucket_prefix string, key string) (string, error) {
-	// searchKey := bucket_prefix + "/" + key
+func (r *awsClient) FetchReport(bucket string, BucketPrefix string, key string) (string, error) {
 	var prefix string
-	if bucket_prefix != "" {
-		prefix += bucket_prefix + "/"
+	if BucketPrefix != "" {
+		prefix += BucketPrefix + "/"
 	}
 
 	trialsKey := fmt.Sprintf("%sresults/%s/trials.json", prefix, key)
