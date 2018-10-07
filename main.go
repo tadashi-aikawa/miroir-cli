@@ -20,6 +20,10 @@ func main() {
 			if err := CmdGetSummaries(args); err != nil {
 				log.Fatal(errors.Wrap(err, "Fail to command `get summaries`"))
 			}
+		case args.CmdReport:
+			if err := CmdGetReport(args); err != nil {
+				log.Fatal(errors.Wrap(err, "Fail to command `get report`"))
+			}
 		}
 	}
 }

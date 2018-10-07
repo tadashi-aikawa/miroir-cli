@@ -24,8 +24,24 @@ func CmdGetSummaries(args Args) error {
 	})
 
 	for _, x := range summaries {
-		fmt.Printf("%v\t%v\t%v\n", x.BeginTime, x.Hashkey[0:12], x.Title)
+		fmt.Printf("%v\t%v\t%v\n", x.BeginTime, x.Hashkey, x.Title)
 	}
+
+	return nil
+}
+
+func CmdGetReport(args Args) error {
+	dao, err := NewAwsDao("ap-northeast-1")
+	if err != nil {
+		return errors.Wrap(err, "Fail to create aws client.")
+	}
+
+	report, err := dao.FetchReport(args.Bucket, args.BucketPrefix, args.KeyPrefix)
+	if err != nil {
+		return errors.Wrap(err, "Fail to fetch report.")
+	}
+
+	fmt.Printf("%v\n", report)
 
 	return nil
 }

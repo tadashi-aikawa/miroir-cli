@@ -2,7 +2,7 @@
 
 
 [[projects]]
-  digest = "1:cd6d7020946fde61e471ae29009f27abb0382d0b525f624d60a71ba48d25a703"
+  digest = "1:e686aee15f1c2f8ddd9ee534b5c724a649f509b594ba5b89734572a255ace2da"
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
     "aws",
@@ -24,9 +24,14 @@
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
+    "private/protocol/restxml",
+    "private/protocol/xml",
     "private/protocol/xml/xmlutil",
     "service/dynamodb",
     "service/dynamodb/dynamodbattribute",
+    "service/s3",
+    "service/s3/s3iface",
+    "service/s3/s3manager",
     "service/sts",
   ]
   pruneopts = "UT"
@@ -61,10 +66,11 @@
   analyzer-version = 1
   input-imports = [
     "github.com/aws/aws-sdk-go-v2/aws",
-    "github.com/aws/aws-sdk-go-v2/aws/endpoints",
     "github.com/aws/aws-sdk-go-v2/aws/external",
     "github.com/aws/aws-sdk-go-v2/service/dynamodb",
     "github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute",
+    "github.com/aws/aws-sdk-go-v2/service/s3",
+    "github.com/aws/aws-sdk-go-v2/service/s3/s3manager",
     "github.com/docopt/docopt-go",
     "github.com/pkg/errors",
   ]
