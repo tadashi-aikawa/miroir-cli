@@ -41,6 +41,30 @@ type awsClient struct {
 	s3       *s3.S3
 }
 
+func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
+	req := r.s3.GetObjectRequest(&s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+
+	resp, err := req.Send()
+	if err != nil {
+		return nil, errors.Wrap(err, "Fail to get report: "+key)
+	}
+
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(resp.Body); err != nil {
+		return nil, errors.Wrap(err, "Fail to read report: "+key)
+	}
+
+	var jsonMap interface{}
+	if err := json.Unmarshal(buf.Bytes(), &jsonMap); err != nil {
+		return nil, errors.Wrap(err, "Fail to parse as json.")
+	}
+
+	return jsonMap, nil
+}
+
 // NewAwsDao creates dao instance
 func NewAwsDao(region string) (Dao, error) {
 	cfg, err := external.LoadDefaultAWSConfig()
@@ -72,30 +96,6 @@ func (r *awsClient) FetchSummaries(table string) ([]Summary, error) {
 	}
 
 	return summaries, nil
-}
-
-func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
-	req := r.s3.GetObjectRequest(&s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(key),
-	})
-
-	resp, err := req.Send()
-	if err != nil {
-		return nil, errors.Wrap(err, "Fail to get report: "+key)
-	}
-
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(resp.Body); err != nil {
-		return nil, errors.Wrap(err, "Fail to read report: "+key)
-	}
-
-	var jsonMap interface{}
-	if err := json.Unmarshal(buf.Bytes(), &jsonMap); err != nil {
-		return nil, errors.Wrap(err, "Fail to parse as json.")
-	}
-
-	return jsonMap, nil
 }
 
 func (r *awsClient) FetchReport(bucket string, BucketPrefix string, key string) (string, error) {
