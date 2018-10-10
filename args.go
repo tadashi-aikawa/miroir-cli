@@ -9,11 +9,12 @@ const version = "0.1.0"
 const usage = `Miroir CLI.
 
 Usage:
-  miroir get summaries --table=<table>
-  miroir get report <key-prefix> --bucket=<bucket> 
+  miroir get summaries [--table=<table>]
+  miroir get report <key> [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>]
   miroir --help
 
 Options:
+  <key>                                 Report key
   -t --table=<table>                    DynamoDB table name
   -b --bucket=<bucket>                  S3 bucket name
   -B --bucket-prefix=<bucket-prefix>    S3 bucket prefix (directory)
@@ -32,7 +33,7 @@ type Args struct {
 	Table        string `docopt:"--table"`
 	Bucket       string `docopt:"--bucket"`
 	BucketPrefix string `docopt:"--bucket-prefix"`
-	KeyPrefix    string `docopt:"<key-prefix>"`
+	Key          string `docopt:"<key>"`
 }
 
 // CreateArgs creates Args

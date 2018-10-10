@@ -2,7 +2,15 @@
 
 
 [[projects]]
-  digest = "1:e686aee15f1c2f8ddd9ee534b5c724a649f509b594ba5b89734572a255ace2da"
+  digest = "1:9f3b30d9f8e0d7040f729b82dcbc8f0dead820a133b3147ce355fc451f32d761"
+  name = "github.com/BurntSushi/toml"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005"
+  version = "v0.3.1"
+
+[[projects]]
+  digest = "1:3ab76a2ee1be9a7dd5956284803f487bd4412aaa70d54061b3d4e3b1591a739c"
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
     "aws",
@@ -30,8 +38,6 @@
     "service/dynamodb",
     "service/dynamodb/dynamodbattribute",
     "service/s3",
-    "service/s3/s3iface",
-    "service/s3/s3manager",
     "service/sts",
   ]
   pruneopts = "UT"
@@ -54,6 +60,14 @@
   revision = "0b12d6b5"
 
 [[projects]]
+  digest = "1:78bbb1ba5b7c3f2ed0ea1eab57bdd3859aec7e177811563edc41198a760b06af"
+  name = "github.com/mitchellh/go-homedir"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ae18d6b8b3205b561c79e8e5f69bff09736185f4"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
   name = "github.com/pkg/errors"
   packages = ["."]
@@ -65,13 +79,14 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/BurntSushi/toml",
     "github.com/aws/aws-sdk-go-v2/aws",
     "github.com/aws/aws-sdk-go-v2/aws/external",
     "github.com/aws/aws-sdk-go-v2/service/dynamodb",
     "github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute",
     "github.com/aws/aws-sdk-go-v2/service/s3",
-    "github.com/aws/aws-sdk-go-v2/service/s3/s3manager",
     "github.com/docopt/docopt-go",
+    "github.com/mitchellh/go-homedir",
     "github.com/pkg/errors",
   ]
   solver-name = "gps-cdcl"
