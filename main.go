@@ -5,24 +5,29 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"gopkg.in/go-playground/validator.v9"
 )
 
-func createArgsGetSummaries(args Args, config Config) ArgsGetSummaries {
+var validate *validator.Validate
+
+func createArgsGetSummaries(args Args, config Config) *ArgsGetSummaries {
 	table := config.Table
 	if args.Table != "" {
 		table = args.Table
 	}
-	r := ArgsGetSummaries{
-		table: table,
+	r := &ArgsGetSummaries{
+		Table: table,
 	}
-	if err := r.validate(); err != nil {
+
+	err := validate.Struct(r)
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	return r
 }
 
-func createArgsGetReport(args Args, config Config) ArgsGetReport {
+func createArgsGetReport(args Args, config Config) *ArgsGetReport {
 	bucket := config.Bucket
 	if args.Bucket != "" {
 		bucket = args.Bucket
@@ -31,12 +36,13 @@ func createArgsGetReport(args Args, config Config) ArgsGetReport {
 	if args.BucketPrefix != "" {
 		bucketPrefix = args.BucketPrefix
 	}
-	r := ArgsGetReport{
-		bucket:       bucket,
-		bucketPrefix: bucketPrefix,
-		key:          args.Key,
+	r := &ArgsGetReport{
+		Bucket:       bucket,
+		BucketPrefix: bucketPrefix,
+		Key:          args.Key,
 	}
-	if err := r.validate(); err != nil {
+
+	if err := validate.Struct(r); err != nil {
 		log.Fatal(err)
 	}
 
@@ -44,6 +50,8 @@ func createArgsGetReport(args Args, config Config) ArgsGetReport {
 }
 
 func main() {
+	validate = validator.New()
+
 	args, err := CreateArgs(usage, os.Args[1:], version)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "Fail to create arguments."))
