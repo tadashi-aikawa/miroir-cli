@@ -49,6 +49,33 @@ func createArgsGetReport(args Args, config Config) *ArgsGetReport {
 	return r
 }
 
+func createArgsPrune(args Args, config Config) *ArgsPrune {
+	table := config.Table
+	if args.Table != "" {
+		table = args.Table
+	}
+	bucket := config.Bucket
+	if args.Bucket != "" {
+		bucket = args.Bucket
+	}
+	bucketPrefix := config.BucketPrefix
+	if args.BucketPrefix != "" {
+		bucketPrefix = args.BucketPrefix
+	}
+	r := &ArgsPrune{
+		Table:        table,
+		Bucket:       bucket,
+		BucketPrefix: bucketPrefix,
+		Dry:          args.Dry,
+	}
+
+	if err := validate.Struct(r); err != nil {
+		log.Fatal(err)
+	}
+
+	return r
+}
+
 func main() {
 	validate = validator.New()
 
@@ -73,6 +100,11 @@ func main() {
 			if err := CmdGetReport(createArgsGetReport(args, config)); err != nil {
 				log.Fatal(errors.Wrap(err, "Fail to command `get report`"))
 			}
+		}
+
+	case args.CmdPrune:
+		if err := CmdPrune(createArgsPrune(args, config)); err != nil {
+			log.Fatal(errors.Wrap(err, "Fail to command `prune`"))
 		}
 	}
 }

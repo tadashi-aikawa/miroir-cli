@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"sort"
 
 	"github.com/pkg/errors"
@@ -53,6 +54,55 @@ func CmdGetReport(args *ArgsGetReport) error {
 	}
 
 	fmt.Printf("%v\n", report)
+
+	return nil
+}
+
+type ArgsPrune struct {
+	Table        string `validate:"required"`
+	Bucket       string `validate:"required"`
+	BucketPrefix string
+	Dry          bool
+}
+
+func pruneReport(dao Dao, table, bucket, bucketPrefix, key string, dryRun bool) error {
+	hasReport, err := dao.HasReport(bucket, bucketPrefix, key)
+	if err != nil {
+		return errors.Wrap(err, "Fail to check whether report exists or not.")
+	}
+
+	if hasReport {
+		log.Printf("[INFO] %v is fine.\n", key)
+		return nil
+	}
+
+	if dryRun {
+		log.Printf("[DRY RUN] %v is removed..\n", key)
+	} else {
+		if err := dao.RemoveSummary(table, key); err != nil {
+			return errors.Wrap(err, "Fail to remove summary")
+		}
+		log.Printf("[RUN] %v is removed..\n", key)
+	}
+
+	return nil
+}
+
+// CmdPrune remove summaries if report that associated with key is not existed.
+func CmdPrune(args *ArgsPrune) error {
+	dao, err := NewAwsDao("ap-northeast-1")
+	if err != nil {
+		return errors.Wrap(err, "Fail to create aws client.")
+	}
+
+	summaries, err := dao.FetchSummaries(args.Table)
+	if err != nil {
+		return errors.Wrap(err, "Fail to fetch summaries.")
+	}
+
+	for _, s := range summaries {
+		pruneReport(dao, args.Table, args.Bucket, args.BucketPrefix, s.Hashkey, args.Dry)
+	}
 
 	return nil
 }

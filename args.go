@@ -11,6 +11,7 @@ const usage = `Miroir CLI.
 Usage:
   miroir get summaries [--table=<table>]
   miroir get report <key> [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>]
+  miroir prune [--table=<table>] [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--dry]
   miroir --help
 
 Options:
@@ -18,6 +19,7 @@ Options:
   -t --table=<table>                    DynamoDB table name
   -b --bucket=<bucket>                  S3 bucket name
   -B --bucket-prefix=<bucket-prefix>    S3 bucket prefix (directory)
+  -d --dry                              Dry run
 
   -h --help                             Show this screen.
   -v --version                          Version
@@ -25,7 +27,8 @@ Options:
 
 // Args created by CLI args
 type Args struct {
-	CmdGet bool `docopt:"get"`
+	CmdGet   bool `docopt:"get"`
+	CmdPrune bool `docopt:"prune"`
 
 	CmdSummaries bool `docopt:"summaries"`
 	CmdReport    bool `docopt:"report"`
@@ -34,6 +37,8 @@ type Args struct {
 	Bucket       string `docopt:"--bucket"`
 	BucketPrefix string `docopt:"--bucket-prefix"`
 	Key          string `docopt:"<key>"`
+
+	Dry bool `docopt:"--dry"`
 }
 
 // CreateArgs creates Args

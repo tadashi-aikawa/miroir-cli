@@ -33,7 +33,9 @@ type Summary struct {
 // Dao can fetch data
 type Dao interface {
 	FetchSummaries(table string) ([]Summary, error)
+	RemoveSummary(table, key string) error
 	FetchReport(bucket string, BucketPrefix string, key string) (string, error)
+	HasReport(bucket string, BucketPrefix string, key string) (bool, error)
 }
 
 type awsClient struct {
@@ -124,4 +126,43 @@ func (r *awsClient) FetchReport(bucket string, BucketPrefix string, key string) 
 	}
 
 	return string(bs), nil
+}
+
+func (r *awsClient) RemoveSummary(table, key string) error {
+	req := r.dynamodb.DeleteItemRequest(&dynamodb.DeleteItemInput{
+		TableName: aws.String(table),
+		Key: map[string]dynamodb.AttributeValue{
+			"hashkey": {
+				S: aws.String(key),
+			},
+		},
+	})
+
+	_, err := req.Send()
+	if err != nil {
+		return errors.Wrap(err, "Fail to delete summary "+table)
+	}
+
+	return nil
+}
+
+func (r *awsClient) HasReport(bucket string, BucketPrefix string, key string) (bool, error) {
+	var prefix string
+	if BucketPrefix != "" {
+		prefix += BucketPrefix + "/"
+	}
+
+	hashDirKey := fmt.Sprintf("%sresults/%s", prefix, key)
+
+	req := r.s3.ListObjectsV2Request(&s3.ListObjectsV2Input{
+		Bucket: aws.String(bucket),
+		Prefix: aws.String(hashDirKey),
+	})
+
+	resp, err := req.Send()
+	if err != nil {
+		return false, errors.Wrap(err, "Fail to check whether report exists or not: "+key)
+	}
+
+	return *resp.KeyCount > 0, nil
 }
