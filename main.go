@@ -15,8 +15,13 @@ func createArgsGetSummaries(args Args, config Config) *ArgsGetSummaries {
 	if args.Table != "" {
 		table = args.Table
 	}
+	roleARN := config.RoleARN
+	if args.RoleARN != "" {
+		roleARN = args.RoleARN
+	}
 	r := &ArgsGetSummaries{
-		Table: table,
+		Table:   table,
+		RoleARN: roleARN,
 	}
 
 	err := validate.Struct(r)
@@ -36,10 +41,15 @@ func createArgsGetReport(args Args, config Config) *ArgsGetReport {
 	if args.BucketPrefix != "" {
 		bucketPrefix = args.BucketPrefix
 	}
+	roleARN := config.RoleARN
+	if args.RoleARN != "" {
+		roleARN = args.RoleARN
+	}
 	r := &ArgsGetReport{
 		Bucket:       bucket,
 		BucketPrefix: bucketPrefix,
 		Key:          args.Key,
+		RoleARN:      roleARN,
 	}
 
 	if err := validate.Struct(r); err != nil {
@@ -62,11 +72,16 @@ func createArgsPrune(args Args, config Config) *ArgsPrune {
 	if args.BucketPrefix != "" {
 		bucketPrefix = args.BucketPrefix
 	}
+	roleARN := config.RoleARN
+	if args.RoleARN != "" {
+		roleARN = args.RoleARN
+	}
 	r := &ArgsPrune{
 		Table:        table,
 		Bucket:       bucket,
 		BucketPrefix: bucketPrefix,
 		Dry:          args.Dry,
+		RoleARN:      roleARN,
 	}
 
 	if err := validate.Struct(r); err != nil {

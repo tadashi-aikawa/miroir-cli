@@ -13,6 +13,7 @@ type Config struct {
 	Bucket       string
 	BucketPrefix string
 	Table        string
+	RoleARN      string
 }
 
 // CreateConfig creates configurations from .miroirconfig(toml)

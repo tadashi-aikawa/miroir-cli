@@ -9,12 +9,13 @@ import (
 )
 
 type ArgsGetSummaries struct {
-	Table string `validate:"required"`
+	Table   string `validate:"required"`
+	RoleARN string
 }
 
 // CmdGetSummaries show summaries
 func CmdGetSummaries(args *ArgsGetSummaries) error {
-	dao, err := NewAwsDao("ap-northeast-1")
+	dao, err := NewAwsDao("ap-northeast-1", args.RoleARN)
 	if err != nil {
 		return errors.Wrap(err, "Fail to create aws client.")
 	}
@@ -39,11 +40,12 @@ type ArgsGetReport struct {
 	Bucket       string `validate:"required"`
 	BucketPrefix string
 	Key          string `validate:"required"`
+	RoleARN      string
 }
 
 // CmdGetReport show report
 func CmdGetReport(args *ArgsGetReport) error {
-	dao, err := NewAwsDao("ap-northeast-1")
+	dao, err := NewAwsDao("ap-northeast-1", args.RoleARN)
 	if err != nil {
 		return errors.Wrap(err, "Fail to create aws client.")
 	}
@@ -63,6 +65,7 @@ type ArgsPrune struct {
 	Bucket       string `validate:"required"`
 	BucketPrefix string
 	Dry          bool
+	RoleARN      string
 }
 
 func pruneReport(dao Dao, table, bucket, bucketPrefix, key string, dryRun bool) error {
@@ -90,7 +93,7 @@ func pruneReport(dao Dao, table, bucket, bucketPrefix, key string, dryRun bool) 
 
 // CmdPrune remove summaries if report that associated with key is not existed.
 func CmdPrune(args *ArgsPrune) error {
-	dao, err := NewAwsDao("ap-northeast-1")
+	dao, err := NewAwsDao("ap-northeast-1", args.RoleARN)
 	if err != nil {
 		return errors.Wrap(err, "Fail to create aws client.")
 	}

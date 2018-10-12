@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/aws/stscreds"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/pkg/errors"
 )
 
@@ -68,12 +71,16 @@ func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
 }
 
 // NewAwsDao creates dao instance
-func NewAwsDao(region string) (Dao, error) {
+func NewAwsDao(region string, roleARN string) (Dao, error) {
 	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to load SDK config")
 	}
 	cfg.Region = region
+
+	if roleARN != "" {
+		cfg.Credentials = stscreds.NewAssumeRoleProvider(sts.New(cfg), roleARN)
+	}
 
 	var client awsClient
 	client.dynamodb = dynamodb.New(cfg)

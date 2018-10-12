@@ -112,6 +112,7 @@
     "github.com/aws/aws-sdk-go-v2/service/dynamodb",
     "github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute",
     "github.com/aws/aws-sdk-go-v2/service/s3",
+    "github.com/aws/aws-sdk-go-v2/service/sts",
     "github.com/docopt/docopt-go",
     "github.com/mitchellh/go-homedir",
     "github.com/pkg/errors",

@@ -9,9 +9,9 @@ const version = "0.1.0"
 const usage = `Miroir CLI.
 
 Usage:
-  miroir get summaries [--table=<table>]
-  miroir get report <key> [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>]
-  miroir prune [--table=<table>] [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--dry]
+  miroir get summaries [--table=<table>] [--role-arn=<role_arn>]
+  miroir get report <key> [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--role-arn=<role_arn>]
+  miroir prune [--table=<table>] [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--dry] [--role-arn=<role_arn>]
   miroir --help
 
 Options:
@@ -19,6 +19,7 @@ Options:
   -t --table=<table>                    DynamoDB table name
   -b --bucket=<bucket>                  S3 bucket name
   -B --bucket-prefix=<bucket-prefix>    S3 bucket prefix (directory)
+  -a --role-arn=<role_arn>              Assume role ARN
   -d --dry                              Dry run
 
   -h --help                             Show this screen.
@@ -36,6 +37,7 @@ type Args struct {
 	Table        string `docopt:"--table"`
 	Bucket       string `docopt:"--bucket"`
 	BucketPrefix string `docopt:"--bucket-prefix"`
+	RoleARN      string `docopt:"--role-arn"`
 	Key          string `docopt:"<key>"`
 
 	Dry bool `docopt:"--dry"`
