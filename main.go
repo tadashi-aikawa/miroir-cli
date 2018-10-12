@@ -101,7 +101,14 @@ func main() {
 
 	config, err := CreateConfig()
 	if err != nil {
-		log.Fatal(errors.Wrap(err, "Fail to load `.miroirconfig`."))
+		switch err {
+		case ErrorHomeDirIsNotFound:
+			log.Printf("[WARN] Home directory is not found and can't load .miroirconfig.... continue...")
+		case ErrorConfigIsNotFound:
+			log.Printf("[WARN] .miroirconfig is not found.... continue...")
+		default:
+			log.Fatal(errors.Wrap(err, "Fail to load `.miroirconfig`."))
+		}
 	}
 
 	switch true {
