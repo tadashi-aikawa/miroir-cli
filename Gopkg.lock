@@ -109,6 +109,7 @@
     "github.com/BurntSushi/toml",
     "github.com/aws/aws-sdk-go-v2/aws",
     "github.com/aws/aws-sdk-go-v2/aws/external",
+    "github.com/aws/aws-sdk-go-v2/aws/stscreds",
     "github.com/aws/aws-sdk-go-v2/service/dynamodb",
     "github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute",
     "github.com/aws/aws-sdk-go-v2/service/s3",
