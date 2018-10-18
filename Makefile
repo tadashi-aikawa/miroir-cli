@@ -20,20 +20,23 @@ init:
 	dep ensure
 
 package-windows:
-	GOOS=windows GOARCH=amd64 go build -o miroir.exe
+	@mkdir -p dist
+	GOOS=windows GOARCH=amd64 go build -o dist/miroir.exe
 
 package-linux:
-	GOOS=linux GOARCH=amd64 go build -a -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o miroir
+	@mkdir -p dist
+	GOOS=linux GOARCH=amd64 go build -a -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o dist/miroir
 
-release:
+clean-package:
+	rm -rf dist
+
+release: clean-package
 	@echo '1. Update versions'
 	@sed -i -r 's/const version = ".+"/const version = "$(version)"/g' args.go
 
 	@echo '2. Packaging'
-	@make package-linux
-	@mkdir -p dist
-	@tar zfc dist/miroir-$(version)-x86_64-linux.zip miroir 
-	@rm miroir
+	make package-linux
+	tar zfc dist/miroir-$(version)-x86_64-linux.tar.gz dist/miroir --remove-files
 
 	@echo '3. Staging and commit'
 	git add args.go
