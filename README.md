@@ -9,11 +9,9 @@ CLI for Miroir. Not support for Windows.
 Install
 -------
 
-```
-$ wget "https://github.com/tadashi-aikawa/miroir-cli/releases/download/v0.4.0/miroir-0.4.0-x86_64-linux.tar.gz" \
-    && tar zvfx *.tar.gz --remove-file \
-    && chmod +x miroir
-```
+Download from release pages and unarchive.
+
+* ex: `https://github.com/tadashi-aikawa/miroir-cli/releases/download/v0.4.0/miroir-0.4.0-x86_64-linux.tar.gz`
 
 
 For developer
