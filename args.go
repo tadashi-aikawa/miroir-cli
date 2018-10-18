@@ -5,7 +5,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const version = "0.1.0"
+const version = "0.4.0"
 const usage = `Miroir CLI.
 
 Usage:
