@@ -30,7 +30,10 @@ func CmdGetSummaries(args *ArgsGetSummaries) error {
 	})
 
 	for _, x := range summaries {
-		fmt.Printf("%v\t%v\t%v\n", x.BeginTime, x.Hashkey, x.Title)
+		fmt.Printf(
+			"%v\t%v\t%v\t%v\t%v\t%v\n",
+			x.BeginTime, x.Hashkey[0:7], x.SameCount, x.DifferentCount, x.FailureCount, x.Title,
+		)
 	}
 
 	return nil
