@@ -33,3 +33,14 @@ Confirm that your branch name equals release version, then...
 ```
 $ make release
 ```
+
+You have to create PR and merge.
+
+
+#### deploy
+
+After you merged PR, then
+
+```
+$ make deploy version=x.y.z
+```
