@@ -23,7 +23,7 @@ For developer
 
 * make
 * bash
-* dep
+* go (with modules)
 * ghr
 
 #### Packaging and deploy

@@ -2,15 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go-v2/aws/stscreds"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/external"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
+	dynamodbTypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/pkg/errors"
@@ -42,17 +43,15 @@ type Dao interface {
 }
 
 type awsClient struct {
-	dynamodb *dynamodb.DynamoDB
-	s3       *s3.S3
+	dynamodb *dynamodb.Client
+	s3       *s3.Client
 }
 
 func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
-	req := r.s3.GetObjectRequest(&s3.GetObjectInput{
+	resp, err := r.s3.GetObject(context.Background(), &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
-
-	resp, err := req.Send()
 	if err != nil {
 		return nil, errors.Wrap(err, "Fail to get report: "+key)
 	}
@@ -72,35 +71,33 @@ func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
 
 // NewAwsDao creates dao instance
 func NewAwsDao(region string, roleARN string) (Dao, error) {
-	cfg, err := external.LoadDefaultAWSConfig()
+	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(region))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to load SDK config")
 	}
-	cfg.Region = region
 
 	if roleARN != "" {
-		cfg.Credentials = stscreds.NewAssumeRoleProvider(sts.New(cfg), roleARN)
+		provider := stscreds.NewAssumeRoleProvider(sts.NewFromConfig(cfg), roleARN)
+		cfg.Credentials = aws.NewCredentialsCache(provider)
 	}
 
 	var client awsClient
-	client.dynamodb = dynamodb.New(cfg)
-	client.s3 = s3.New(cfg)
+	client.dynamodb = dynamodb.NewFromConfig(cfg)
+	client.s3 = s3.NewFromConfig(cfg)
 
 	return &client, nil
 }
 
 func (r *awsClient) FetchSummaries(table string) ([]Summary, error) {
-	req := r.dynamodb.ScanRequest(&dynamodb.ScanInput{
+	resp, err := r.dynamodb.Scan(context.Background(), &dynamodb.ScanInput{
 		TableName: aws.String(table),
 	})
-
-	resp, err := req.Send()
 	if err != nil {
 		return nil, errors.Wrap(err, "Fail to get summaries from "+table)
 	}
 
 	var summaries []Summary
-	if err := dynamodbattribute.UnmarshalListOfMaps(resp.Items, &summaries); err != nil {
+	if err := attributevalue.UnmarshalListOfMaps(resp.Items, &summaries); err != nil {
 		return nil, errors.Wrap(err, "Fail to parse summaries with struct `Summary`")
 	}
 
@@ -136,16 +133,14 @@ func (r *awsClient) FetchReport(bucket string, BucketPrefix string, key string) 
 }
 
 func (r *awsClient) RemoveSummary(table, key string) error {
-	req := r.dynamodb.DeleteItemRequest(&dynamodb.DeleteItemInput{
+	_, err := r.dynamodb.DeleteItem(context.Background(), &dynamodb.DeleteItemInput{
 		TableName: aws.String(table),
-		Key: map[string]dynamodb.AttributeValue{
-			"hashkey": {
-				S: aws.String(key),
+		Key: map[string]dynamodbTypes.AttributeValue{
+			"hashkey": &dynamodbTypes.AttributeValueMemberS{
+				Value: key,
 			},
 		},
 	})
-
-	_, err := req.Send()
 	if err != nil {
 		return errors.Wrap(err, "Fail to delete summary "+table)
 	}
@@ -161,14 +156,16 @@ func (r *awsClient) HasReport(bucket string, BucketPrefix string, key string) (b
 
 	hashDirKey := fmt.Sprintf("%sresults/%s", prefix, key)
 
-	req := r.s3.ListObjectsV2Request(&s3.ListObjectsV2Input{
+	resp, err := r.s3.ListObjectsV2(context.Background(), &s3.ListObjectsV2Input{
 		Bucket: aws.String(bucket),
 		Prefix: aws.String(hashDirKey),
 	})
-
-	resp, err := req.Send()
 	if err != nil {
 		return false, errors.Wrap(err, "Fail to check whether report exists or not: "+key)
+	}
+
+	if resp.KeyCount == nil {
+		return false, nil
 	}
 
 	return *resp.KeyCount > 0, nil

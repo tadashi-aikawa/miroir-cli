@@ -24,7 +24,7 @@ branch_version := $(shell git rev-parse --abbrev-ref HEAD)
 #------
 
 init:
-	dep ensure
+	go mod tidy
 
 package-windows: ## Create miroir-cli for Windows.
 	@mkdir -p dist
@@ -33,6 +33,10 @@ package-windows: ## Create miroir-cli for Windows.
 package-linux: ## Create miroir-cli for Linux.
 	@mkdir -p dist
 	GOOS=linux GOARCH=amd64 go build -a -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o dist/miroir
+
+package-macos: ## Create miroir-cli for macOS.
+	@mkdir -p dist
+	GOOS=darwin GOARCH=amd64 go build -o dist/miroir
 
 clean-package:
 	rm -rf dist
