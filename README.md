@@ -170,6 +170,8 @@ Moto を使う例:
 - body 本体は report JSON の中には含まれません
 - `trials[].one.file` / `trials[].other.file` がある場合だけ取得できます
 - 実体は `results/<key>/<trial.<side>.file>` から読みます
+- `trial.<side>.file` は相対パスとして妥当な場合だけ取得できます
+- response body が `20MB` を超える場合は取得を拒否します
 
 `bucket_prefix` が設定されている場合は、先頭に `<bucket_prefix>/` が付きます。
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -18,6 +19,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/pkg/errors"
 )
+
+const maxResponseBodySize int64 = 20 * 1024 * 1024
 
 // Summary of report
 type Summary struct {
@@ -104,6 +107,7 @@ func (r *awsClient) fetchObject(bucket string, key string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Fail to get report: "+key)
 	}
+	defer resp.Body.Close()
 
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(resp.Body); err != nil {
@@ -111,6 +115,21 @@ func (r *awsClient) fetchObject(bucket string, key string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (r *awsClient) fetchObjectSize(bucket string, key string) (int64, error) {
+	resp, err := r.s3.HeadObject(context.Background(), &s3.HeadObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return 0, errors.Wrap(err, "Fail to inspect report: "+key)
+	}
+	if resp.ContentLength == nil {
+		return 0, nil
+	}
+
+	return *resp.ContentLength, nil
 }
 
 // NewAwsDao creates dao instance
@@ -263,6 +282,32 @@ func buildResponseBodyKey(bucketPrefix, key, file string) string {
 	return fmt.Sprintf("%s/%s", buildResultsPrefix(bucketPrefix, key), file)
 }
 
+func validateResponseBodyFilePath(file string) error {
+	if file == "" {
+		return errors.New("trial file must not be empty")
+	}
+	if strings.HasPrefix(file, "/") {
+		return errors.New("trial file must be a relative path")
+	}
+
+	for _, segment := range strings.Split(file, "/") {
+		switch segment {
+		case "", ".", "..":
+			return errors.New("trial file contains an invalid path segment")
+		}
+	}
+
+	return nil
+}
+
+func validateResponseBodySize(size int64) error {
+	if size > maxResponseBodySize {
+		return errors.Errorf("response body exceeds size limit: size=%d limit=%d", size, maxResponseBodySize)
+	}
+
+	return nil
+}
+
 func (r *awsClient) FetchResponseBody(bucket string, BucketPrefix string, key string, seq int, side string) (string, error) {
 	doc, err := r.fetchReportDocument(bucket, BucketPrefix, key)
 	if err != nil {
@@ -278,8 +323,19 @@ func (r *awsClient) FetchResponseBody(bucket string, BucketPrefix string, key st
 	if err != nil {
 		return "", errors.Wrap(err, fmt.Sprintf("key=%s seq=%d", key, seq))
 	}
+	if err := validateResponseBodyFilePath(file); err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("key=%s seq=%d", key, seq))
+	}
 
 	bodyKey := buildResponseBodyKey(BucketPrefix, key, file)
+	size, err := r.fetchObjectSize(bucket, bodyKey)
+	if err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("Fail to inspect response body: %s (%s)", bodyKey, bucket))
+	}
+	if err := validateResponseBodySize(size); err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("key=%s seq=%d body_key=%s", key, seq, bodyKey))
+	}
+
 	bs, err := r.fetchObject(bucket, bodyKey)
 	if err != nil {
 		return "", errors.Wrap(err, fmt.Sprintf("Fail to fetch response body: %s (%s)", bodyKey, bucket))

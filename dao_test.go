@@ -77,3 +77,43 @@ func TestGetTrialSideFileRejectsUnsupportedSide(t *testing.T) {
 		t.Fatal("expected error for unsupported side")
 	}
 }
+
+func TestValidateResponseBodyFilePath(t *testing.T) {
+	if err := validateResponseBodyFilePath("responses/one/(3)example.json"); err != nil {
+		t.Fatalf("validateResponseBodyFilePath returned error: %v", err)
+	}
+}
+
+func TestValidateResponseBodyFilePathRejectsAbsolutePath(t *testing.T) {
+	err := validateResponseBodyFilePath("/responses/one.json")
+	if err == nil {
+		t.Fatal("expected error for absolute path")
+	}
+}
+
+func TestValidateResponseBodyFilePathRejectsTraversal(t *testing.T) {
+	err := validateResponseBodyFilePath("responses/../secret.json")
+	if err == nil {
+		t.Fatal("expected error for path traversal")
+	}
+}
+
+func TestValidateResponseBodyFilePathRejectsEmptySegment(t *testing.T) {
+	err := validateResponseBodyFilePath("responses//one.json")
+	if err == nil {
+		t.Fatal("expected error for empty segment")
+	}
+}
+
+func TestValidateResponseBodySize(t *testing.T) {
+	if err := validateResponseBodySize(maxResponseBodySize); err != nil {
+		t.Fatalf("validateResponseBodySize returned error: %v", err)
+	}
+}
+
+func TestValidateResponseBodySizeRejectsLargeObject(t *testing.T) {
+	err := validateResponseBodySize(maxResponseBodySize + 1)
+	if err == nil {
+		t.Fatal("expected error for oversized response body")
+	}
+}

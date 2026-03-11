@@ -3,6 +3,8 @@
 ## 実行時の注意
 
 - この環境では `go test` / `go build` が `~/Library/Caches/go-build` への書き込みで失敗することがあるため、`GOCACHE=/tmp/go-build GOTMPDIR=/tmp` を付けて実行する
+- 作業の最後に `make package-macos` で成果物を作成できることを必ず確認すること
+    - 成果物としてのバイナリはその後の動作確認にも使えるので一石二鳥
 
 ## ドキュメント方針
 
