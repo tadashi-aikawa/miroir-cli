@@ -1,17 +1,16 @@
-package main
+package miroir
 
 import (
+	"errors"
 	"log"
-	"os"
+
+	"github.com/alecthomas/kong"
 )
 
-func main() {
-	_, parser, ctx, err := ParseCLI(os.Args[1:])
+func Execute(argv []string) (*kong.Kong, error) {
+	_, parser, ctx, err := ParseCLI(argv)
 	if err != nil {
-		if parser == nil {
-			log.Fatal(err)
-		}
-		parser.FatalIfErrorf(err)
+		return parser, err
 	}
 
 	config, err := CreateConfig()
@@ -22,11 +21,18 @@ func main() {
 		case ErrorConfigIsNotFound:
 			log.Printf("[WARN] .miroirconfig is not found.... continue...")
 		default:
-			log.Fatal(err)
+			return parser, err
 		}
 	}
 
 	if err := ctx.Run(&appContext{Config: config}); err != nil {
-		log.Fatal(err)
+		return parser, err
 	}
+
+	return parser, nil
+}
+
+func IsParseError(err error) bool {
+	var parseErr *kong.ParseError
+	return errors.As(err, &parseErr)
 }

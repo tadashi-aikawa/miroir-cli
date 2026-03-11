@@ -28,22 +28,22 @@ init:
 
 package-windows: ## Create miroir-cli for Windows.
 	@mkdir -p dist
-	GOOS=windows GOARCH=amd64 go build -o dist/miroir.exe
+	GOOS=windows GOARCH=amd64 go build -o dist/miroir.exe ./cmd/miroir
 
 package-linux: ## Create miroir-cli for Linux.
 	@mkdir -p dist
-	GOOS=linux GOARCH=amd64 go build -a -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o dist/miroir
+	GOOS=linux GOARCH=amd64 go build -a -tags netgo -installsuffix netgo --ldflags '-extldflags "-static"' -o dist/miroir ./cmd/miroir
 
 package-macos: ## Create miroir-cli for macOS.
 	@mkdir -p dist
-	GOOS=darwin GOARCH=amd64 go build -o dist/miroir
+	GOOS=darwin GOARCH=amd64 go build -o dist/miroir ./cmd/miroir
 
 clean-package:
 	rm -rf dist
 
 release: clean-package ## Build and upload packages, regarding branch name as version
 	@echo '1. Update versions'
-	@sed -i -r 's/const version = ".+"/const version = "$(branch_version)"/g' args.go
+	@sed -i -r 's/const version = ".+"/const version = "$(branch_version)"/g' internal/miroir/version.go
 
 	@echo '2. Packaging'
 	make package-linux
@@ -59,7 +59,7 @@ release: clean-package ## Build and upload packages, regarding branch name as ve
 	rm -rf dist/miroir.exe
 
 	@echo '3. Staging and commit'
-	git add args.go
+	git add internal/miroir/version.go
 	git commit -m ':package: Version $(branch_version)'
 
 	@echo '4. Push'

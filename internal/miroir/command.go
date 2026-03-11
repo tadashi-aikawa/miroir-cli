@@ -1,4 +1,4 @@
-package main
+package miroir
 
 import (
 	"encoding/json"

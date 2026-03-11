@@ -30,7 +30,7 @@
 ソースからビルドする場合:
 
 ```bash
-go build -o miroir
+go build -o miroir ./cmd/miroir
 ```
 
 ## 設定ファイル
@@ -250,7 +250,7 @@ make package-windows
 | `7z` | Windows 向け zip 作成 |
 | `ghr` | GitHub Releases へのアップロード |
 
-リリースブランチ名をそのままバージョンとして使います。`make release` は `args.go` の `version` をブランチ名に更新し、Linux / Windows 向けパッケージを作成してコミット・push まで行います。
+リリースブランチ名をそのままバージョンとして使います。`make release` は `internal/miroir/version.go` の `version` をブランチ名に更新し、Linux / Windows 向けパッケージを作成してコミット・push まで行います。
 
 ```bash
 make release
@@ -264,8 +264,8 @@ make deploy version=x.y.z
 
 ## ローカル検証用メモ
 
-`moto/docker-compose.yml` には Moto Server の定義があります。
+`tools/moto/docker-compose.yml` には Moto Server の定義があります。
 
 ```bash
-docker compose -f moto/docker-compose.yml up
+docker compose -f tools/moto/docker-compose.yml up
 ```
