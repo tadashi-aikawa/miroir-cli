@@ -80,6 +80,50 @@ func createArgsGetReport(args Args, config Config) *ArgsGetReport {
 	return r
 }
 
+func createArgsGetResponseBody(args Args, config Config) *ArgsGetResponseBody {
+	seq, side, err := parseResponseBodyArgs(args)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bucket := config.Bucket
+	if args.Bucket != "" {
+		bucket = args.Bucket
+	}
+	bucketPrefix := config.BucketPrefix
+	if args.BucketPrefix != "" {
+		bucketPrefix = args.BucketPrefix
+	}
+	roleARN := config.RoleARN
+	if args.RoleARN != "" {
+		roleARN = args.RoleARN
+	}
+	s3Endpoint := config.S3Endpoint
+	if args.S3Endpoint != "" {
+		s3Endpoint = args.S3Endpoint
+	}
+	stsEndpoint := config.STSEndpoint
+	if args.STSEndpoint != "" {
+		stsEndpoint = args.STSEndpoint
+	}
+	r := &ArgsGetResponseBody{
+		Bucket:       bucket,
+		BucketPrefix: bucketPrefix,
+		Key:          args.Key,
+		Seq:          seq,
+		Side:         side,
+		RoleARN:      roleARN,
+		S3Endpoint:   s3Endpoint,
+		STSEndpoint:  stsEndpoint,
+	}
+
+	if err := validate.Struct(r); err != nil {
+		log.Fatal(err)
+	}
+
+	return r
+}
+
 func createArgsPrune(args Args, config Config) *ArgsPrune {
 	table := config.Table
 	if args.Table != "" {
@@ -157,6 +201,10 @@ func main() {
 		case args.CmdReport:
 			if err := CmdGetReport(createArgsGetReport(args, config)); err != nil {
 				log.Fatal(errors.Wrap(err, "Fail to command `get report`"))
+			}
+		case args.CmdResponseBody:
+			if err := CmdGetResponseBody(createArgsGetResponseBody(args, config)); err != nil {
+				log.Fatal(errors.Wrap(err, "Fail to command `get response-body`"))
 			}
 		}
 

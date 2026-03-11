@@ -70,6 +70,7 @@ sts_endpoint = "http://localhost:3456"
 Usage:
   miroir get summaries [--json] [--table=<table>] [--role-arn=<role_arn>] [--dynamodb-endpoint=<url>] [--sts-endpoint=<url>]
   miroir get report <key> [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--sts-endpoint=<url>]
+  miroir get response-body <key> <seq> (--one | --other) [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--sts-endpoint=<url>]
   miroir prune [--table=<table>] [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--dry] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--dynamodb-endpoint=<url>] [--sts-endpoint=<url>]
   miroir --help
 ```
@@ -158,6 +159,20 @@ Moto を使う例:
 
 この例では `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` が未設定でも、CLI が `test` / `test` を自動利用します。
 
+### レスポンス本体を取得する
+
+```bash
+./miroir get response-body 0123456789abcdef 3 --one
+```
+
+このコマンドは、指定した report の `trials[].seq` と side (`--one` / `--other`) から response body 本体を取得します。
+
+- body 本体は report JSON の中には含まれません
+- `trials[].one.file` / `trials[].other.file` がある場合だけ取得できます
+- 実体は `results/<key>/<trial.<side>.file>` から読みます
+
+`bucket_prefix` が設定されている場合は、先頭に `<bucket_prefix>/` が付きます。
+
 ### 不整合なサマリを削除する
 
 ```bash
@@ -186,6 +201,8 @@ Moto を使う例:
 | `--s3-endpoint` | S3 の endpoint URL |
 | `--dynamodb-endpoint` | DynamoDB の endpoint URL |
 | `--sts-endpoint` | STS の endpoint URL |
+| `--one` | `response-body` で `one` 側の response body を取得する |
+| `--other` | `response-body` で `other` 側の response body を取得する |
 | `--dry`, `-d` | `prune` を削除せず確認のみで実行する |
 | `--json` | `get summaries` の出力を JSON にする |
 | `--help`, `-h` | ヘルプを表示する |

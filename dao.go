@@ -41,6 +41,7 @@ type Dao interface {
 	FetchSummaries(table string) ([]Summary, error)
 	RemoveSummary(table, key string) error
 	FetchReport(bucket string, BucketPrefix string, key string) (string, error)
+	FetchResponseBody(bucket string, BucketPrefix string, key string, seq int, side string) (string, error)
 	HasReport(bucket string, BucketPrefix string, key string) (bool, error)
 }
 
@@ -67,7 +68,35 @@ func shouldUseDummyCredentials(e endpoints) bool {
 	return os.Getenv("AWS_ACCESS_KEY_ID") == "" && os.Getenv("AWS_SECRET_ACCESS_KEY") == ""
 }
 
+type reportDocument struct {
+	Trials []reportTrial `json:"trials"`
+}
+
+type reportTrial struct {
+	Seq   int             `json:"seq"`
+	One   reportTrialSide `json:"one"`
+	Other reportTrialSide `json:"other"`
+}
+
+type reportTrialSide struct {
+	File string `json:"file"`
+}
+
 func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
+	bs, err := r.fetchObject(bucket, key)
+	if err != nil {
+		return nil, err
+	}
+
+	var jsonMap interface{}
+	if err := json.Unmarshal(bs, &jsonMap); err != nil {
+		return nil, errors.Wrap(err, "Fail to parse as json.")
+	}
+
+	return jsonMap, nil
+}
+
+func (r *awsClient) fetchObject(bucket string, key string) ([]byte, error) {
 	resp, err := r.s3.GetObject(context.Background(), &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -81,12 +110,7 @@ func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
 		return nil, errors.Wrap(err, "Fail to read report: "+key)
 	}
 
-	var jsonMap interface{}
-	if err := json.Unmarshal(buf.Bytes(), &jsonMap); err != nil {
-		return nil, errors.Wrap(err, "Fail to parse as json.")
-	}
-
-	return jsonMap, nil
+	return buf.Bytes(), nil
 }
 
 // NewAwsDao creates dao instance
@@ -147,29 +171,118 @@ func (r *awsClient) FetchSummaries(table string) ([]Summary, error) {
 	return summaries, nil
 }
 
-func (r *awsClient) FetchReport(bucket string, BucketPrefix string, key string) (string, error) {
-	var prefix string
-	if BucketPrefix != "" {
-		prefix += BucketPrefix + "/"
+func buildResultsPrefix(bucketPrefix, key string) string {
+	if bucketPrefix == "" {
+		return fmt.Sprintf("results/%s", key)
 	}
 
-	trialsKey := fmt.Sprintf("%sresults/%s/trials.json", prefix, key)
+	return fmt.Sprintf("%s/results/%s", bucketPrefix, key)
+}
+
+func (r *awsClient) fetchMergedReportData(bucket string, bucketPrefix string, key string) (interface{}, error) {
+	resultsPrefix := buildResultsPrefix(bucketPrefix, key)
+
+	trialsKey := fmt.Sprintf("%s/trials.json", resultsPrefix)
 	trials, err := r.fetchJSON(bucket, trialsKey)
 	if err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("Fail to fetch json: %s (%s)", trialsKey, bucket))
+		return nil, errors.Wrap(err, fmt.Sprintf("Fail to fetch json: %s (%s)", trialsKey, bucket))
 	}
 
-	withoutTrialsKey := fmt.Sprintf("%sresults/%s/report-without-trials.json", prefix, key)
+	withoutTrialsKey := fmt.Sprintf("%s/report-without-trials.json", resultsPrefix)
 	report, err := r.fetchJSON(bucket, withoutTrialsKey)
 	if err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("Fail to fetch json: %s (%s)", withoutTrialsKey, bucket))
+		return nil, errors.Wrap(err, fmt.Sprintf("Fail to fetch json: %s (%s)", withoutTrialsKey, bucket))
 	}
 
 	report.(map[string]interface{})["trials"] = trials
 
+	return report, nil
+}
+
+func (r *awsClient) fetchReportDocument(bucket string, bucketPrefix string, key string) (*reportDocument, error) {
+	report, err := r.fetchMergedReportData(bucket, bucketPrefix, key)
+	if err != nil {
+		return nil, err
+	}
+
+	bs, err := json.Marshal(report)
+	if err != nil {
+		return nil, errors.Wrap(err, "Fail to parse json to string")
+	}
+
+	var doc reportDocument
+	if err := json.Unmarshal(bs, &doc); err != nil {
+		return nil, errors.Wrap(err, "Fail to parse report document.")
+	}
+
+	return &doc, nil
+}
+
+func (r *awsClient) FetchReport(bucket string, BucketPrefix string, key string) (string, error) {
+	report, err := r.fetchMergedReportData(bucket, BucketPrefix, key)
+	if err != nil {
+		return "", err
+	}
+
 	bs, err := json.Marshal(report)
 	if err != nil {
 		return "", errors.Wrap(err, "Fail to parse json to string")
+	}
+
+	return string(bs), nil
+}
+
+func findTrialBySeq(trials []reportTrial, seq int) (*reportTrial, error) {
+	for _, trial := range trials {
+		if trial.Seq == seq {
+			return &trial, nil
+		}
+	}
+
+	return nil, errors.Errorf("Report trial is not found: seq=%d", seq)
+}
+
+func getTrialSideFile(trial *reportTrial, side string) (string, error) {
+	switch side {
+	case "one":
+		if trial.One.File == "" {
+			return "", errors.New("Response body is not stored for side=one")
+		}
+		return trial.One.File, nil
+	case "other":
+		if trial.Other.File == "" {
+			return "", errors.New("Response body is not stored for side=other")
+		}
+		return trial.Other.File, nil
+	default:
+		return "", errors.Errorf("Unsupported side: %s", side)
+	}
+}
+
+func buildResponseBodyKey(bucketPrefix, key, file string) string {
+	return fmt.Sprintf("%s/%s", buildResultsPrefix(bucketPrefix, key), file)
+}
+
+func (r *awsClient) FetchResponseBody(bucket string, BucketPrefix string, key string, seq int, side string) (string, error) {
+	doc, err := r.fetchReportDocument(bucket, BucketPrefix, key)
+	if err != nil {
+		return "", err
+	}
+
+	trial, err := findTrialBySeq(doc.Trials, seq)
+	if err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("key=%s", key))
+	}
+
+	file, err := getTrialSideFile(trial, side)
+	if err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("key=%s seq=%d", key, seq))
+	}
+
+	bodyKey := buildResponseBodyKey(BucketPrefix, key, file)
+	bs, err := r.fetchObject(bucket, bodyKey)
+	if err != nil {
+		return "", errors.Wrap(err, fmt.Sprintf("Fail to fetch response body: %s (%s)", bodyKey, bucket))
 	}
 
 	return string(bs), nil
@@ -192,12 +305,7 @@ func (r *awsClient) RemoveSummary(table, key string) error {
 }
 
 func (r *awsClient) HasReport(bucket string, BucketPrefix string, key string) (bool, error) {
-	var prefix string
-	if BucketPrefix != "" {
-		prefix += BucketPrefix + "/"
-	}
-
-	hashDirKey := fmt.Sprintf("%sresults/%s", prefix, key)
+	hashDirKey := buildResultsPrefix(BucketPrefix, key)
 
 	resp, err := r.s3.ListObjectsV2(context.Background(), &s3.ListObjectsV2Input{
 		Bucket: aws.String(bucket),

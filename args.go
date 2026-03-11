@@ -11,11 +11,13 @@ const usage = `Miroir CLI.
 Usage:
   miroir get summaries [--json] [--table=<table>] [--role-arn=<role_arn>] [--dynamodb-endpoint=<url>] [--sts-endpoint=<url>]
   miroir get report <key> [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--sts-endpoint=<url>]
+  miroir get response-body <key> <seq> (--one | --other) [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--sts-endpoint=<url>]
   miroir prune [--table=<table>] [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--dry] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--dynamodb-endpoint=<url>] [--sts-endpoint=<url>]
   miroir --help
 
 Options:
   <key>                                 Report key
+  <seq>                                 Trial sequence number
   -t --table=<table>                    DynamoDB table name
   -b --bucket=<bucket>                  S3 bucket name
   -B --bucket-prefix=<bucket-prefix>    S3 bucket prefix (directory)
@@ -23,6 +25,8 @@ Options:
   --s3-endpoint=<url>                   S3 endpoint URL
   --dynamodb-endpoint=<url>             DynamoDB endpoint URL
   --sts-endpoint=<url>                  STS endpoint URL
+  --one                                 Fetch body for the one side
+  --other                               Fetch body for the other side
   -d --dry                              Dry run
   --json                                Output summaries as JSON
 
@@ -35,8 +39,9 @@ type Args struct {
 	CmdGet   bool `docopt:"get"`
 	CmdPrune bool `docopt:"prune"`
 
-	CmdSummaries bool `docopt:"summaries"`
-	CmdReport    bool `docopt:"report"`
+	CmdSummaries    bool `docopt:"summaries"`
+	CmdReport       bool `docopt:"report"`
+	CmdResponseBody bool `docopt:"response-body"`
 
 	Table            string `docopt:"--table"`
 	Bucket           string `docopt:"--bucket"`
@@ -46,9 +51,12 @@ type Args struct {
 	DynamoDBEndpoint string `docopt:"--dynamodb-endpoint"`
 	STSEndpoint      string `docopt:"--sts-endpoint"`
 	Key              string `docopt:"<key>"`
+	Seq              string `docopt:"<seq>"`
 
-	Dry bool `docopt:"--dry"`
-	JSON bool `docopt:"--json"`
+	Dry   bool `docopt:"--dry"`
+	JSON  bool `docopt:"--json"`
+	One   bool `docopt:"--one"`
+	Other bool `docopt:"--other"`
 }
 
 // CreateArgs creates Args

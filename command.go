@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strconv"
 
 	"github.com/pkg/errors"
 )
@@ -77,6 +78,18 @@ type ArgsGetReport struct {
 	STSEndpoint      string
 }
 
+type ArgsGetResponseBody struct {
+	Bucket           string `validate:"required"`
+	BucketPrefix     string
+	Key              string `validate:"required"`
+	Seq              int    `validate:"min=1"`
+	Side             string `validate:"required,oneof=one other"`
+	RoleARN          string
+	S3Endpoint       string
+	DynamoDBEndpoint string
+	STSEndpoint      string
+}
+
 // CmdGetReport show report
 func CmdGetReport(args *ArgsGetReport) error {
 	dao, err := NewAwsDao("ap-northeast-1", args.RoleARN, args.S3Endpoint, args.DynamoDBEndpoint, args.STSEndpoint)
@@ -92,6 +105,48 @@ func CmdGetReport(args *ArgsGetReport) error {
 	fmt.Printf("%v\n", report)
 
 	return nil
+}
+
+// CmdGetResponseBody show response body
+func CmdGetResponseBody(args *ArgsGetResponseBody) error {
+	dao, err := NewAwsDao("ap-northeast-1", args.RoleARN, args.S3Endpoint, args.DynamoDBEndpoint, args.STSEndpoint)
+	if err != nil {
+		return errors.Wrap(err, "Fail to create aws client.")
+	}
+
+	body, err := dao.FetchResponseBody(args.Bucket, args.BucketPrefix, args.Key, args.Seq, args.Side)
+	if err != nil {
+		return errors.Wrap(err, "Fail to fetch response body.")
+	}
+
+	if err := writeResponseBody(os.Stdout, body); err != nil {
+		return errors.Wrap(err, "Fail to write response body.")
+	}
+
+	return nil
+}
+
+func writeResponseBody(w io.Writer, body string) error {
+	_, err := fmt.Fprintf(w, "%v\n", body)
+	return err
+}
+
+func parseResponseBodyArgs(args Args) (int, string, error) {
+	seq, err := strconv.Atoi(args.Seq)
+	if err != nil {
+		return 0, "", errors.Wrap(err, "Fail to parse seq.")
+	}
+
+	switch {
+	case args.One && args.Other:
+		return 0, "", errors.New("Either --one or --other must be specified, but not both.")
+	case args.One:
+		return seq, "one", nil
+	case args.Other:
+		return seq, "other", nil
+	default:
+		return 0, "", errors.New("Either --one or --other must be specified.")
+	}
 }
 
 type ArgsPrune struct {
