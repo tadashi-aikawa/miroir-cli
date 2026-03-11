@@ -7,13 +7,12 @@ import (
 	"log"
 	"os"
 	"sort"
-	"strconv"
 
 	"github.com/pkg/errors"
 )
 
 type ArgsGetSummaries struct {
-	Table            string `validate:"required"`
+	Table            string
 	RoleARN          string
 	S3Endpoint       string
 	DynamoDBEndpoint string
@@ -69,30 +68,28 @@ func writeSummaries(w io.Writer, summaries []Summary, outputJSON bool) error {
 }
 
 type ArgsGetReport struct {
-	Bucket           string `validate:"required"`
-	BucketPrefix     string
-	Key              string `validate:"required"`
-	RoleARN          string
-	S3Endpoint       string
-	DynamoDBEndpoint string
-	STSEndpoint      string
+	Bucket       string
+	BucketPrefix string
+	Key          string
+	RoleARN      string
+	S3Endpoint   string
+	STSEndpoint  string
 }
 
 type ArgsGetResponseBody struct {
-	Bucket           string `validate:"required"`
-	BucketPrefix     string
-	Key              string `validate:"required"`
-	Seq              int    `validate:"min=1"`
-	Side             string `validate:"required,oneof=one other"`
-	RoleARN          string
-	S3Endpoint       string
-	DynamoDBEndpoint string
-	STSEndpoint      string
+	Bucket       string
+	BucketPrefix string
+	Key          string
+	Seq          int
+	Side         string
+	RoleARN      string
+	S3Endpoint   string
+	STSEndpoint  string
 }
 
 // CmdGetReport show report
 func CmdGetReport(args *ArgsGetReport) error {
-	dao, err := NewAwsDao("ap-northeast-1", args.RoleARN, args.S3Endpoint, args.DynamoDBEndpoint, args.STSEndpoint)
+	dao, err := NewAwsDao("ap-northeast-1", args.RoleARN, args.S3Endpoint, "", args.STSEndpoint)
 	if err != nil {
 		return errors.Wrap(err, "Fail to create aws client.")
 	}
@@ -109,7 +106,7 @@ func CmdGetReport(args *ArgsGetReport) error {
 
 // CmdGetResponseBody show response body
 func CmdGetResponseBody(args *ArgsGetResponseBody) error {
-	dao, err := NewAwsDao("ap-northeast-1", args.RoleARN, args.S3Endpoint, args.DynamoDBEndpoint, args.STSEndpoint)
+	dao, err := NewAwsDao("ap-northeast-1", args.RoleARN, args.S3Endpoint, "", args.STSEndpoint)
 	if err != nil {
 		return errors.Wrap(err, "Fail to create aws client.")
 	}
@@ -131,27 +128,9 @@ func writeResponseBody(w io.Writer, body string) error {
 	return err
 }
 
-func parseResponseBodyArgs(args Args) (int, string, error) {
-	seq, err := strconv.Atoi(args.Seq)
-	if err != nil {
-		return 0, "", errors.Wrap(err, "Fail to parse seq.")
-	}
-
-	switch {
-	case args.One && args.Other:
-		return 0, "", errors.New("Either --one or --other must be specified, but not both.")
-	case args.One:
-		return seq, "one", nil
-	case args.Other:
-		return seq, "other", nil
-	default:
-		return 0, "", errors.New("Either --one or --other must be specified.")
-	}
-}
-
 type ArgsPrune struct {
-	Table            string `validate:"required"`
-	Bucket           string `validate:"required"`
+	Table            string
+	Bucket           string
 	BucketPrefix     string
 	Dry              bool
 	RoleARN          string
@@ -195,8 +174,18 @@ func CmdPrune(args *ArgsPrune) error {
 		return errors.Wrap(err, "Fail to fetch summaries.")
 	}
 
+	if err := pruneSummaries(dao, args.Table, args.Bucket, args.BucketPrefix, summaries, args.Dry); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func pruneSummaries(dao Dao, table, bucket, bucketPrefix string, summaries []Summary, dryRun bool) error {
 	for _, s := range summaries {
-		pruneReport(dao, args.Table, args.Bucket, args.BucketPrefix, s.Hashkey, args.Dry)
+		if err := pruneReport(dao, table, bucket, bucketPrefix, s.Hashkey, dryRun); err != nil {
+			return errors.Wrap(err, "Fail to prune summary")
+		}
 	}
 
 	return nil

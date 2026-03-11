@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/go-playground/validator.v9"
+	"github.com/pkg/errors"
 )
 
 func TestWriteSummariesText(t *testing.T) {
@@ -108,53 +108,58 @@ func TestWriteResponseBody(t *testing.T) {
 	}
 }
 
-func TestParseResponseBodyArgsOne(t *testing.T) {
-	seq, side, err := parseResponseBodyArgs(Args{Seq: "3", One: true})
-	if err != nil {
-		t.Fatalf("parseResponseBodyArgs returned error: %v", err)
+func TestPruneSummariesPropagatesError(t *testing.T) {
+	dao := &stubDao{
+		hasReportByKey: map[string]bool{
+			"ok": true,
+			"ng": false,
+		},
+		removeSummaryErrByKey: map[string]error{
+			"ng": errStub,
+		},
 	}
 
-	if seq != 3 || side != "one" {
-		t.Fatalf("unexpected parse result: seq=%d side=%s", seq, side)
-	}
-}
-
-func TestParseResponseBodyArgsOther(t *testing.T) {
-	seq, side, err := parseResponseBodyArgs(Args{Seq: "4", Other: true})
-	if err != nil {
-		t.Fatalf("parseResponseBodyArgs returned error: %v", err)
-	}
-
-	if seq != 4 || side != "other" {
-		t.Fatalf("unexpected parse result: seq=%d side=%s", seq, side)
-	}
-}
-
-func TestParseResponseBodyArgsRequiresSide(t *testing.T) {
-	_, _, err := parseResponseBodyArgs(Args{Seq: "1"})
+	err := pruneSummaries(dao, "table", "bucket", "prefix", []Summary{
+		{Hashkey: "ok"},
+		{Hashkey: "ng"},
+	}, false)
 	if err == nil {
-		t.Fatal("expected error when side is not specified")
+		t.Fatal("expected pruneSummaries to return an error")
 	}
 }
 
-func TestParseResponseBodyArgsRejectsBothSides(t *testing.T) {
-	_, _, err := parseResponseBodyArgs(Args{Seq: "1", One: true, Other: true})
-	if err == nil {
-		t.Fatal("expected error when both sides are specified")
-	}
+var errStub = errors.New("stub error")
+
+type stubDao struct {
+	hasReportByKey        map[string]bool
+	hasReportErrByKey     map[string]error
+	removeSummaryErrByKey map[string]error
+	removedKeys           []string
 }
 
-func TestArgsGetResponseBodyValidationRejectsZeroSeq(t *testing.T) {
-	v := validator.New()
+func (s *stubDao) FetchSummaries(table string) ([]Summary, error) {
+	return nil, nil
+}
 
-	args := &ArgsGetResponseBody{
-		Bucket: "bucket",
-		Key:    "key",
-		Seq:    0,
-		Side:   "one",
+func (s *stubDao) RemoveSummary(table, key string) error {
+	if err := s.removeSummaryErrByKey[key]; err != nil {
+		return err
 	}
+	s.removedKeys = append(s.removedKeys, key)
+	return nil
+}
 
-	if err := v.Struct(args); err == nil {
-		t.Fatal("expected validation error for seq=0")
+func (s *stubDao) FetchReport(bucket string, bucketPrefix string, key string) (string, error) {
+	return "", nil
+}
+
+func (s *stubDao) FetchResponseBody(bucket string, bucketPrefix string, key string, seq int, side string) (string, error) {
+	return "", nil
+}
+
+func (s *stubDao) HasReport(bucket string, bucketPrefix string, key string) (bool, error) {
+	if err := s.hasReportErrByKey[key]; err != nil {
+		return false, err
 	}
+	return s.hasReportByKey[key], nil
 }

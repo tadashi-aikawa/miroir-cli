@@ -1,78 +1,284 @@
 package main
 
 import (
-	"github.com/docopt/docopt-go"
+	"github.com/alecthomas/kong"
 	"github.com/pkg/errors"
 )
 
 const version = "0.5.0"
-const usage = `Miroir CLI.
 
-Usage:
-  miroir get summaries [--json] [--table=<table>] [--role-arn=<role_arn>] [--dynamodb-endpoint=<url>] [--sts-endpoint=<url>]
-  miroir get report <key> [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--sts-endpoint=<url>]
-  miroir get response-body <key> <seq> (--one | --other) [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--sts-endpoint=<url>]
-  miroir prune [--table=<table>] [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--dry] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--dynamodb-endpoint=<url>] [--sts-endpoint=<url>]
-  miroir --help
-
-Options:
-  <key>                                 Report key
-  <seq>                                 Trial sequence number
-  -t --table=<table>                    DynamoDB table name
-  -b --bucket=<bucket>                  S3 bucket name
-  -B --bucket-prefix=<bucket-prefix>    S3 bucket prefix (directory)
-  -a --role-arn=<role_arn>              Assume role ARN
-  --s3-endpoint=<url>                   S3 endpoint URL
-  --dynamodb-endpoint=<url>             DynamoDB endpoint URL
-  --sts-endpoint=<url>                  STS endpoint URL
-  --one                                 Fetch body for the one side
-  --other                               Fetch body for the other side
-  -d --dry                              Dry run
-  --json                                Output summaries as JSON
-
-  -h --help                             Show this screen.
-  -v --version                          Version
-  `
-
-// Args created by CLI args
-type Args struct {
-	CmdGet   bool `docopt:"get"`
-	CmdPrune bool `docopt:"prune"`
-
-	CmdSummaries    bool `docopt:"summaries"`
-	CmdReport       bool `docopt:"report"`
-	CmdResponseBody bool `docopt:"response-body"`
-
-	Table            string `docopt:"--table"`
-	Bucket           string `docopt:"--bucket"`
-	BucketPrefix     string `docopt:"--bucket-prefix"`
-	RoleARN          string `docopt:"--role-arn"`
-	S3Endpoint       string `docopt:"--s3-endpoint"`
-	DynamoDBEndpoint string `docopt:"--dynamodb-endpoint"`
-	STSEndpoint      string `docopt:"--sts-endpoint"`
-	Key              string `docopt:"<key>"`
-	Seq              string `docopt:"<seq>"`
-
-	Dry   bool `docopt:"--dry"`
-	JSON  bool `docopt:"--json"`
-	One   bool `docopt:"--one"`
-	Other bool `docopt:"--other"`
+type CLI struct {
+	Version kong.VersionFlag `name:"version" short:"v" help:"Version."`
+	Get     getCommand       `cmd:"" help:"Get reports and summaries."`
+	Prune   pruneCommand     `cmd:"" help:"Remove summaries without reports."`
 }
 
-// CreateArgs creates Args
-func CreateArgs(usage string, argv []string, version string) (Args, error) {
-	parser := &docopt.Parser{
-		HelpHandler:  docopt.PrintHelpOnly,
-		OptionsFirst: false,
-	}
+type getCommand struct {
+	Summaries    getSummariesCommand    `cmd:"" help:"Show summaries."`
+	Report       getReportCommand       `cmd:"" help:"Show report."`
+	ResponseBody getResponseBodyCommand `cmd:"" name:"response-body" help:"Show response body."`
+}
 
-	opts, err := parser.ParseArgs(usage, argv, version)
+type awsFlags struct {
+	RoleARN     string `name:"role-arn" short:"a" help:"Assume role ARN."`
+	STSEndpoint string `name:"sts-endpoint" help:"STS endpoint URL."`
+}
+
+type s3Flags struct {
+	Bucket       string `name:"bucket" short:"b" help:"S3 bucket name."`
+	BucketPrefix string `name:"bucket-prefix" short:"B" help:"S3 bucket prefix (directory)."`
+	S3Endpoint   string `name:"s3-endpoint" help:"S3 endpoint URL."`
+}
+
+type dynamoFlags struct {
+	Table            string `name:"table" short:"t" help:"DynamoDB table name."`
+	DynamoDBEndpoint string `name:"dynamodb-endpoint" help:"DynamoDB endpoint URL."`
+}
+
+type getSummariesCommand struct {
+	awsFlags    `embed:""`
+	dynamoFlags `embed:""`
+	JSON        bool `name:"json" help:"Output summaries as JSON."`
+}
+
+type getReportCommand struct {
+	awsFlags `embed:""`
+	s3Flags  `embed:""`
+	Key      string `arg:"" name:"key" help:"Report key."`
+}
+
+type getResponseBodyCommand struct {
+	awsFlags `embed:""`
+	s3Flags  `embed:""`
+	Key      string `arg:"" name:"key" help:"Report key."`
+	Seq      int    `arg:"" name:"seq" help:"Trial sequence number."`
+	One      bool   `name:"one" xor:"side" required:"" help:"Fetch body for the one side."`
+	Other    bool   `name:"other" xor:"side" required:"" help:"Fetch body for the other side."`
+}
+
+type pruneCommand struct {
+	awsFlags    `embed:""`
+	s3Flags     `embed:""`
+	dynamoFlags `embed:""`
+	Dry         bool `name:"dry" short:"d" help:"Dry run."`
+}
+
+type appContext struct {
+	Config Config
+}
+
+func ParseCLI(argv []string) (*CLI, *kong.Kong, *kong.Context, error) {
+	cli := &CLI{}
+
+	parser, err := kong.New(
+		cli,
+		kong.Name("miroir"),
+		kong.Description("Miroir CLI."),
+		kong.Vars{
+			"version": version,
+		},
+	)
 	if err != nil {
-		return Args{}, errors.Wrap(err, "Fail to parse arguments.")
+		return nil, nil, nil, errors.Wrap(err, "Fail to initialize arguments parser.")
 	}
 
-	var args Args
-	opts.Bind(&args)
+	ctx, err := parser.Parse(argv)
+	return cli, parser, ctx, err
+}
 
-	return args, nil
+func (c *getSummariesCommand) Run(app *appContext) error {
+	args, err := c.resolveArgs(app.Config)
+	if err != nil {
+		return errors.Wrap(err, "Fail to resolve `get summaries` arguments.")
+	}
+
+	if err := CmdGetSummaries(args); err != nil {
+		return errors.Wrap(err, "Fail to command `get summaries`")
+	}
+
+	return nil
+}
+
+func (c *getReportCommand) Run(app *appContext) error {
+	args, err := c.resolveArgs(app.Config)
+	if err != nil {
+		return errors.Wrap(err, "Fail to resolve `get report` arguments.")
+	}
+
+	if err := CmdGetReport(args); err != nil {
+		return errors.Wrap(err, "Fail to command `get report`")
+	}
+
+	return nil
+}
+
+func (c *getResponseBodyCommand) Run(app *appContext) error {
+	args, err := c.resolveArgs(app.Config)
+	if err != nil {
+		return errors.Wrap(err, "Fail to resolve `get response-body` arguments.")
+	}
+
+	if err := CmdGetResponseBody(args); err != nil {
+		return errors.Wrap(err, "Fail to command `get response-body`")
+	}
+
+	return nil
+}
+
+func (c *pruneCommand) Run(app *appContext) error {
+	args, err := c.resolveArgs(app.Config)
+	if err != nil {
+		return errors.Wrap(err, "Fail to resolve `prune` arguments.")
+	}
+
+	if err := CmdPrune(args); err != nil {
+		return errors.Wrap(err, "Fail to command `prune`")
+	}
+
+	return nil
+}
+
+func (c *getResponseBodyCommand) Validate() error {
+	if c.Seq < 1 {
+		return errors.New("<seq> must be greater than or equal to 1")
+	}
+
+	return nil
+}
+
+func (c *getSummariesCommand) resolveArgs(config Config) (*ArgsGetSummaries, error) {
+	resolvedAWS := resolveAWSFlags(c.awsFlags, config)
+	resolvedDynamo := resolveDynamoFlags(c.dynamoFlags, config)
+
+	if err := requireOption("table", resolvedDynamo.Table); err != nil {
+		return nil, err
+	}
+
+	return &ArgsGetSummaries{
+		Table:            resolvedDynamo.Table,
+		RoleARN:          resolvedAWS.RoleARN,
+		DynamoDBEndpoint: resolvedDynamo.DynamoDBEndpoint,
+		STSEndpoint:      resolvedAWS.STSEndpoint,
+		JSON:             c.JSON,
+	}, nil
+}
+
+func (c *getReportCommand) resolveArgs(config Config) (*ArgsGetReport, error) {
+	resolvedAWS := resolveAWSFlags(c.awsFlags, config)
+	resolvedS3 := resolveS3Flags(c.s3Flags, config)
+
+	if err := requireOption("bucket", resolvedS3.Bucket); err != nil {
+		return nil, err
+	}
+
+	return &ArgsGetReport{
+		Bucket:       resolvedS3.Bucket,
+		BucketPrefix: resolvedS3.BucketPrefix,
+		Key:          c.Key,
+		RoleARN:      resolvedAWS.RoleARN,
+		S3Endpoint:   resolvedS3.S3Endpoint,
+		STSEndpoint:  resolvedAWS.STSEndpoint,
+	}, nil
+}
+
+func (c *getResponseBodyCommand) resolveArgs(config Config) (*ArgsGetResponseBody, error) {
+	resolvedAWS := resolveAWSFlags(c.awsFlags, config)
+	resolvedS3 := resolveS3Flags(c.s3Flags, config)
+
+	if err := requireOption("bucket", resolvedS3.Bucket); err != nil {
+		return nil, err
+	}
+
+	side, err := c.resolveSide()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ArgsGetResponseBody{
+		Bucket:       resolvedS3.Bucket,
+		BucketPrefix: resolvedS3.BucketPrefix,
+		Key:          c.Key,
+		Seq:          c.Seq,
+		Side:         side,
+		RoleARN:      resolvedAWS.RoleARN,
+		S3Endpoint:   resolvedS3.S3Endpoint,
+		STSEndpoint:  resolvedAWS.STSEndpoint,
+	}, nil
+}
+
+func (c *pruneCommand) resolveArgs(config Config) (*ArgsPrune, error) {
+	resolvedAWS := resolveAWSFlags(c.awsFlags, config)
+	resolvedS3 := resolveS3Flags(c.s3Flags, config)
+	resolvedDynamo := resolveDynamoFlags(c.dynamoFlags, config)
+
+	if err := requireOption("table", resolvedDynamo.Table); err != nil {
+		return nil, err
+	}
+	if err := requireOption("bucket", resolvedS3.Bucket); err != nil {
+		return nil, err
+	}
+
+	return &ArgsPrune{
+		Table:            resolvedDynamo.Table,
+		Bucket:           resolvedS3.Bucket,
+		BucketPrefix:     resolvedS3.BucketPrefix,
+		Dry:              c.Dry,
+		RoleARN:          resolvedAWS.RoleARN,
+		S3Endpoint:       resolvedS3.S3Endpoint,
+		DynamoDBEndpoint: resolvedDynamo.DynamoDBEndpoint,
+		STSEndpoint:      resolvedAWS.STSEndpoint,
+	}, nil
+}
+
+func (c *getResponseBodyCommand) resolveSide() (string, error) {
+	switch {
+	case c.One && c.Other:
+		return "", errors.New("Either --one or --other must be specified, but not both.")
+	case c.One:
+		return "one", nil
+	case c.Other:
+		return "other", nil
+	default:
+		return "", errors.New("Either --one or --other must be specified.")
+	}
+}
+
+func resolveAWSFlags(flags awsFlags, config Config) awsFlags {
+	return awsFlags{
+		RoleARN:     firstNonEmpty(flags.RoleARN, config.RoleARN),
+		STSEndpoint: firstNonEmpty(flags.STSEndpoint, config.STSEndpoint),
+	}
+}
+
+func resolveS3Flags(flags s3Flags, config Config) s3Flags {
+	return s3Flags{
+		Bucket:       firstNonEmpty(flags.Bucket, config.Bucket),
+		BucketPrefix: firstNonEmpty(flags.BucketPrefix, config.BucketPrefix),
+		S3Endpoint:   firstNonEmpty(flags.S3Endpoint, config.S3Endpoint),
+	}
+}
+
+func resolveDynamoFlags(flags dynamoFlags, config Config) dynamoFlags {
+	return dynamoFlags{
+		Table:            firstNonEmpty(flags.Table, config.Table),
+		DynamoDBEndpoint: firstNonEmpty(flags.DynamoDBEndpoint, config.DynamoDBEndpoint),
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+
+	return ""
+}
+
+func requireOption(name, value string) error {
+	if value == "" {
+		return errors.Errorf("%s is required either via CLI flag or .miroirconfig", name)
+	}
+
+	return nil
 }

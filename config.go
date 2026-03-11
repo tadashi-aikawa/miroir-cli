@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 )
 
@@ -15,8 +14,8 @@ const (
 )
 
 var (
-	ErrorHomeDirIsNotFound = errors.New(errorMsgConfigIsNotFound)
-	ErrorConfigIsNotFound  = errors.New(errorMsgHomeDirIsNotFound)
+	ErrorHomeDirIsNotFound = errors.New(errorMsgHomeDirIsNotFound)
+	ErrorConfigIsNotFound  = errors.New(errorMsgConfigIsNotFound)
 )
 
 // Config configuration
@@ -30,21 +29,19 @@ type Config struct {
 	STSEndpoint      string `toml:"sts_endpoint"`
 }
 
-func exists(filename string) bool {
-	_, err := os.Stat(filename)
-	return err == nil
-}
-
 // CreateConfig creates configurations from .miroirconfig(toml)
 func CreateConfig() (Config, error) {
-	home, err := homedir.Dir()
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return Config{}, ErrorHomeDirIsNotFound
 	}
 
 	configPath := filepath.Join(home, ".miroirconfig")
-	if isExists := exists(configPath); !isExists {
-		return Config{}, ErrorConfigIsNotFound
+	if _, err := os.Stat(configPath); err != nil {
+		if os.IsNotExist(err) {
+			return Config{}, ErrorConfigIsNotFound
+		}
+		return Config{}, errors.Wrap(err, "Fail to inspect `.miroirconfig`.")
 	}
 
 	var conf Config

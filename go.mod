@@ -4,6 +4,7 @@ go 1.24
 
 require (
 	github.com/BurntSushi/toml v0.3.1
+	github.com/alecthomas/kong v1.14.0
 	github.com/aws/aws-sdk-go-v2 v1.41.2
 	github.com/aws/aws-sdk-go-v2/config v1.32.10
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.10
@@ -11,10 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.56.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.2
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.7
-	github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815
-	github.com/mitchellh/go-homedir v1.0.0
 	github.com/pkg/errors v0.8.0
-	gopkg.in/go-playground/validator.v9 v9.21.0
 )
 
 require (
@@ -34,7 +32,4 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.11 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.15 // indirect
 	github.com/aws/smithy-go v1.24.1 // indirect
-	github.com/go-playground/locales v0.14.1 // indirect
-	github.com/go-playground/universal-translator v0.18.1 // indirect
-	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 )
