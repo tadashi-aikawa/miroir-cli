@@ -1,5 +1,9 @@
 # AGENTS
 
+## 実行時の注意
+
+- この環境では `go test` / `go build` が `~/Library/Caches/go-build` への書き込みで失敗することがあるため、`GOCACHE=/tmp/go-build GOTMPDIR=/tmp` を付けて実行する
+
 ## ドキュメント方針
 
 ### README.md

@@ -44,6 +44,9 @@ table = "miroir-summaries"
 bucket = "miroir-report-bucket"
 bucket_prefix = "production"
 role_arn = "arn:aws:iam::123456789012:role/miroir-readonly"
+s3_endpoint = "http://localhost:3456"
+dynamodb_endpoint = "http://localhost:3456"
+sts_endpoint = "http://localhost:3456"
 ```
 
 利用できるキー:
@@ -54,14 +57,20 @@ role_arn = "arn:aws:iam::123456789012:role/miroir-readonly"
 | `bucket` | S3 バケット名 |
 | `bucket_prefix` | S3 上のプレフィックス |
 | `role_arn` | AssumeRole に使う IAM Role ARN |
+| `s3_endpoint` | S3 の endpoint URL |
+| `dynamodb_endpoint` | DynamoDB の endpoint URL |
+| `sts_endpoint` | STS の endpoint URL |
+
+> [!INFO]
+> endpoint を指定した場合、`AWS_ACCESS_KEY_ID` と `AWS_SECRET_ACCESS_KEY` が未設定なら、開発確認用に `test` / `test` のダミー credential を自動で使います。環境変数がある場合はそちらを優先します。
 
 ## 使い方
 
 ```text
 Usage:
-  miroir get summaries [--table=<table>] [--role-arn=<role_arn>]
-  miroir get report <key> [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--role-arn=<role_arn>]
-  miroir prune [--table=<table>] [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--dry] [--role-arn=<role_arn>]
+  miroir get summaries [--json] [--table=<table>] [--role-arn=<role_arn>] [--dynamodb-endpoint=<url>] [--sts-endpoint=<url>]
+  miroir get report <key> [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--sts-endpoint=<url>]
+  miroir prune [--table=<table>] [--bucket=<bucket>] [--bucket-prefix=<bucket-prefix>] [--dry] [--role-arn=<role_arn>] [--s3-endpoint=<url>] [--dynamodb-endpoint=<url>] [--sts-endpoint=<url>]
   miroir --help
 ```
 
@@ -88,6 +97,34 @@ Usage:
 | 5 | `failure_count` |
 | 6 | `title` |
 
+JSON で取得したい場合は `--json` を付けます。
+
+```bash
+./miroir get summaries --json
+```
+
+この場合はサマリ一覧を JSON 配列で出力し、`hashkey` は 7 文字に短縮せず完全な値を返します。
+
+```json
+[
+  {
+    "hashkey": "0123456789abcdef",
+    "title": "example",
+    "one_host": "host-a",
+    "other_host": "host-b",
+    "same_count": 10,
+    "different_count": 2,
+    "failure_count": 0,
+    "begin_time": "2026-03-11T10:00:00Z",
+    "end_time": "2026-03-11T10:01:00Z",
+    "elapsed_sec": 60,
+    "check_status": "success",
+    "retry_hash": "",
+    "with_zip": false
+  }
+]
+```
+
 ### レポートを取得する
 
 ```bash
@@ -110,6 +147,16 @@ Usage:
   --bucket miroir-report-bucket \
   --bucket-prefix production
 ```
+
+Moto を使う例:
+
+```bash
+./miroir get report 0123456789abcdef \
+  --bucket miroir-report-bucket \
+  --s3-endpoint http://localhost:3456
+```
+
+この例では `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` が未設定でも、CLI が `test` / `test` を自動利用します。
 
 ### 不整合なサマリを削除する
 
@@ -136,13 +183,18 @@ Usage:
 | `--bucket`, `-b` | S3 バケット名 |
 | `--bucket-prefix`, `-B` | S3 プレフィックス |
 | `--role-arn`, `-a` | AssumeRole 用 ARN |
+| `--s3-endpoint` | S3 の endpoint URL |
+| `--dynamodb-endpoint` | DynamoDB の endpoint URL |
+| `--sts-endpoint` | STS の endpoint URL |
 | `--dry`, `-d` | `prune` を削除せず確認のみで実行する |
+| `--json` | `get summaries` の出力を JSON にする |
 | `--help`, `-h` | ヘルプを表示する |
 | `--version`, `-v` | バージョンを表示する |
 
 ## 注意点
 
 - 対象リージョンは `ap-northeast-1` です
+- endpoint を指定してもリージョンは `ap-northeast-1` のままです
 - `prune` は `--dry` を付けないと DynamoDB の項目を削除します
 
 > [!INFO]

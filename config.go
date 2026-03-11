@@ -21,10 +21,13 @@ var (
 
 // Config configuration
 type Config struct {
-	Bucket       string
-	BucketPrefix string
-	Table        string
-	RoleARN      string
+	Bucket           string `toml:"bucket"`
+	BucketPrefix     string `toml:"bucket_prefix"`
+	Table            string `toml:"table"`
+	RoleARN          string `toml:"role_arn"`
+	S3Endpoint       string `toml:"s3_endpoint"`
+	DynamoDBEndpoint string `toml:"dynamodb_endpoint"`
+	STSEndpoint      string `toml:"sts_endpoint"`
 }
 
 func exists(filename string) bool {

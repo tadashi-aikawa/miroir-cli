@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -19,19 +21,19 @@ import (
 
 // Summary of report
 type Summary struct {
-	Hashkey        string
-	Title          string
-	OneHost        string `dynamodbav:"one_host"`
-	OtherHost      string `dynamodbav:"other_host"`
-	SameCount      int    `dynamodbav:"same_count"`
-	DifferentCount int    `dynamodbav:"different_count"`
-	FailureCount   int    `dynamodbav:"failure_count"`
-	BeginTime      string `dynamodbav:"begin_time"`
-	EndTime        string `dynamodbav:"end_time"`
-	ElapsedSec     int    `dynamodbav:"elapsed_sec"`
-	CheckStatus    string `dynamodbav:"check_status"`
-	RetryHash      string `dynamodbav:"retry_hash"`
-	WithZip        bool   `dynamodbav:"with_zip"`
+	Hashkey        string `json:"hashkey"`
+	Title          string `json:"title"`
+	OneHost        string `dynamodbav:"one_host" json:"one_host"`
+	OtherHost      string `dynamodbav:"other_host" json:"other_host"`
+	SameCount      int    `dynamodbav:"same_count" json:"same_count"`
+	DifferentCount int    `dynamodbav:"different_count" json:"different_count"`
+	FailureCount   int    `dynamodbav:"failure_count" json:"failure_count"`
+	BeginTime      string `dynamodbav:"begin_time" json:"begin_time"`
+	EndTime        string `dynamodbav:"end_time" json:"end_time"`
+	ElapsedSec     int    `dynamodbav:"elapsed_sec" json:"elapsed_sec"`
+	CheckStatus    string `dynamodbav:"check_status" json:"check_status"`
+	RetryHash      string `dynamodbav:"retry_hash" json:"retry_hash"`
+	WithZip        bool   `dynamodbav:"with_zip" json:"with_zip"`
 }
 
 // Dao can fetch data
@@ -45,6 +47,24 @@ type Dao interface {
 type awsClient struct {
 	dynamodb *dynamodb.Client
 	s3       *s3.Client
+}
+
+type endpoints struct {
+	S3       string
+	DynamoDB string
+	STS      string
+}
+
+func (e endpoints) hasCustomEndpoint() bool {
+	return e.S3 != "" || e.DynamoDB != "" || e.STS != ""
+}
+
+func shouldUseDummyCredentials(e endpoints) bool {
+	if !e.hasCustomEndpoint() {
+		return false
+	}
+
+	return os.Getenv("AWS_ACCESS_KEY_ID") == "" && os.Getenv("AWS_SECRET_ACCESS_KEY") == ""
 }
 
 func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
@@ -70,20 +90,43 @@ func (r *awsClient) fetchJSON(bucket string, key string) (interface{}, error) {
 }
 
 // NewAwsDao creates dao instance
-func NewAwsDao(region string, roleARN string) (Dao, error) {
+func NewAwsDao(region string, roleARN string, s3Endpoint string, dynamodbEndpoint string, stsEndpoint string) (Dao, error) {
 	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(region))
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to load SDK config")
 	}
 
+	endpoints := endpoints{
+		S3:       s3Endpoint,
+		DynamoDB: dynamodbEndpoint,
+		STS:      stsEndpoint,
+	}
+
+	if shouldUseDummyCredentials(endpoints) {
+		cfg.Credentials = aws.NewCredentialsCache(credentials.NewStaticCredentialsProvider("test", "test", ""))
+	}
+
 	if roleARN != "" {
-		provider := stscreds.NewAssumeRoleProvider(sts.NewFromConfig(cfg), roleARN)
+		provider := stscreds.NewAssumeRoleProvider(sts.NewFromConfig(cfg, func(o *sts.Options) {
+			if endpoints.STS != "" {
+				o.BaseEndpoint = aws.String(endpoints.STS)
+			}
+		}), roleARN)
 		cfg.Credentials = aws.NewCredentialsCache(provider)
 	}
 
 	var client awsClient
-	client.dynamodb = dynamodb.NewFromConfig(cfg)
-	client.s3 = s3.NewFromConfig(cfg)
+	client.dynamodb = dynamodb.NewFromConfig(cfg, func(o *dynamodb.Options) {
+		if endpoints.DynamoDB != "" {
+			o.BaseEndpoint = aws.String(endpoints.DynamoDB)
+		}
+	})
+	client.s3 = s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if endpoints.S3 != "" {
+			o.BaseEndpoint = aws.String(endpoints.S3)
+			o.UsePathStyle = true
+		}
+	})
 
 	return &client, nil
 }

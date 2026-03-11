@@ -19,9 +19,20 @@ func createArgsGetSummaries(args Args, config Config) *ArgsGetSummaries {
 	if args.RoleARN != "" {
 		roleARN = args.RoleARN
 	}
+	dynamodbEndpoint := config.DynamoDBEndpoint
+	if args.DynamoDBEndpoint != "" {
+		dynamodbEndpoint = args.DynamoDBEndpoint
+	}
+	stsEndpoint := config.STSEndpoint
+	if args.STSEndpoint != "" {
+		stsEndpoint = args.STSEndpoint
+	}
 	r := &ArgsGetSummaries{
-		Table:   table,
-		RoleARN: roleARN,
+		Table:            table,
+		RoleARN:          roleARN,
+		DynamoDBEndpoint: dynamodbEndpoint,
+		STSEndpoint:      stsEndpoint,
+		JSON:             args.JSON,
 	}
 
 	err := validate.Struct(r)
@@ -45,11 +56,21 @@ func createArgsGetReport(args Args, config Config) *ArgsGetReport {
 	if args.RoleARN != "" {
 		roleARN = args.RoleARN
 	}
+	s3Endpoint := config.S3Endpoint
+	if args.S3Endpoint != "" {
+		s3Endpoint = args.S3Endpoint
+	}
+	stsEndpoint := config.STSEndpoint
+	if args.STSEndpoint != "" {
+		stsEndpoint = args.STSEndpoint
+	}
 	r := &ArgsGetReport{
 		Bucket:       bucket,
 		BucketPrefix: bucketPrefix,
 		Key:          args.Key,
 		RoleARN:      roleARN,
+		S3Endpoint:   s3Endpoint,
+		STSEndpoint:  stsEndpoint,
 	}
 
 	if err := validate.Struct(r); err != nil {
@@ -76,12 +97,27 @@ func createArgsPrune(args Args, config Config) *ArgsPrune {
 	if args.RoleARN != "" {
 		roleARN = args.RoleARN
 	}
+	s3Endpoint := config.S3Endpoint
+	if args.S3Endpoint != "" {
+		s3Endpoint = args.S3Endpoint
+	}
+	dynamodbEndpoint := config.DynamoDBEndpoint
+	if args.DynamoDBEndpoint != "" {
+		dynamodbEndpoint = args.DynamoDBEndpoint
+	}
+	stsEndpoint := config.STSEndpoint
+	if args.STSEndpoint != "" {
+		stsEndpoint = args.STSEndpoint
+	}
 	r := &ArgsPrune{
-		Table:        table,
-		Bucket:       bucket,
-		BucketPrefix: bucketPrefix,
-		Dry:          args.Dry,
-		RoleARN:      roleARN,
+		Table:            table,
+		Bucket:           bucket,
+		BucketPrefix:     bucketPrefix,
+		Dry:              args.Dry,
+		RoleARN:          roleARN,
+		S3Endpoint:       s3Endpoint,
+		DynamoDBEndpoint: dynamodbEndpoint,
+		STSEndpoint:      stsEndpoint,
 	}
 
 	if err := validate.Struct(r); err != nil {
